@@ -63,6 +63,8 @@ class OutputsConfig(_Section):
 class FireConfig(_Section):
     id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]*$")
     name: str
+    # NPWS Fire History FireNo: the link to this fire's outline (1.3), independent of its name.
+    npws_fire_no: str = Field(pattern=r"^\d+$")
     start_date: date
     end_date: date
     pre_fire_days: PositiveDays | None = None

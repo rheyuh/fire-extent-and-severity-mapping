@@ -12,9 +12,9 @@ bands:                                  # verified in 1.1
 
 grid:
   resolution: 20                        # metres; native for B8A and B12
-  crs: null                             # PLACEHOLDER: match FESM (1.2)
+  crs: EPSG:3308                        # verified in 1.2: FESM's CRS, GDA94 / NSW Lambert
 
-dates:                                  # PLACEHOLDER: defaults, chosen with the fires (1.4)
+dates:                                  # checked in 1.4: clear scenes found for every chosen fire
   pre_fire_days: 60                     # search window before the fire starts
   post_fire_days: 60                    # search window after the fire ends
 
@@ -27,10 +27,31 @@ qa: {}                                  # PLACEHOLDER: gate limits decided in 3.
 outputs:
   root: outputs
 
-fires: []                               # PLACEHOLDER: chosen in 1.4
-# Example entry (a fire may override the default date windows):
-#   - id: example-fire
-#     name: Example Fire
-#     start_date: 2025-12-01
-#     end_date: 2025-12-20
-#     post_fire_days: 90
+# Chosen in 1.4 (docs/data-sources.md). Dates and FireNo from the NPWS snapshot of 2026-11-09.
+# A fire may override the default windows with its own pre_fire_days / post_fire_days.
+fires:
+  - id: willi-willi-rd
+    name: Willi Willi Rd, Moparrabah
+    npws_fire_no: "23101419923"
+    start_date: 2023-10-14
+    end_date: 2023-11-08
+  - id: guy-fawkes-np
+    name: Guy Fawkes NP
+    npws_fire_no: "23120927869"
+    start_date: 2023-12-09
+    end_date: 2023-12-24
+  - id: hudson
+    name: Hudson Fire
+    npws_fire_no: "23111224029"
+    start_date: 2023-11-12
+    end_date: 2023-11-25
+  - id: dthinna-dthinnawan
+    name: Dthinna Dthinnawan
+    npws_fire_no: "23120927782"
+    start_date: 2023-12-09
+    end_date: 2023-12-22
+  - id: coolagolite
+    name: Coolagolite
+    npws_fire_no: "23100318556"
+    start_date: 2023-10-03
+    end_date: 2023-11-16
