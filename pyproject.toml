@@ -3,6 +3,8 @@ name = "fesmqa"
 version = "0.1.0"
 description = "Validates NSW FESM burn severity maps against independent Sentinel-2 dNBR, with QA gates and provenance."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "rheyuh", email = "r.iai@outlook.com" }
 ]
