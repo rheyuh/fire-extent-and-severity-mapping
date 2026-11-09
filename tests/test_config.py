@@ -26,6 +26,7 @@ def make_fire(fire_id: str = "test-fire", **overrides: Any) -> dict[str, Any]:
     fire: dict[str, Any] = {
         "id": fire_id,
         "name": "Test Fire",
+        "npws_fire_no": "25120100001",
         "start_date": "2025-12-01",
         "end_date": "2025-12-20",
     }
@@ -72,6 +73,12 @@ def test_duplicate_fire_ids(data: dict[str, Any]) -> None:
 def test_bad_fire_id(data: dict[str, Any]) -> None:
     data["fires"] = [make_fire("Fire 1")]
     with pytest.raises(ValidationError):
+        Config.model_validate(data)
+
+
+def test_npws_fire_no_must_be_digits(data: dict[str, Any]) -> None:
+    data["fires"] = [make_fire(npws_fire_no="WILLI-WILLI")]
+    with pytest.raises(ValidationError, match="npws_fire_no"):
         Config.model_validate(data)
 
 

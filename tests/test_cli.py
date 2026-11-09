@@ -21,6 +21,7 @@ def config_file(tmp_path: Path) -> Path:
         {
             "id": "test-fire",
             "name": "Test Fire",
+            "npws_fire_no": "25120100001",
             "start_date": "2025-12-01",
             "end_date": "2025-12-20",
         }
