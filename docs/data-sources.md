@@ -374,6 +374,36 @@ Chosen 2026-11-09 (8 fires):
 
 Post-fire scenes must come after `EndDate`; several fires ran for three to six weeks (Coolagolite: 3 Oct to 16 Nov).
 
+### Pass 2: FESM inside each outline
+
+Method: for each shortlisted `FireNo`, all NPWS polygons with that number were reprojected from EPSG:4283 to EPSG:3308 and used to mask FESM 2023/24, keeping pixels whose centre lies inside the outline (no inward buffer yet). Pixels were counted per class, ignoring nodata (255). Run 2026-11-09 with rasterio and fiona, using a local lookup script (not part of the package). For one fire, the same clip with GDAL:
+
+```sh
+gdalwarp -cutline data/npws/2026-11-09/NPWSFireHistory.shp -csql "SELECT * FROM NPWSFireHistory WHERE FireNo = '23101419923'" -crop_to_cutline -dstnodata 255 data/fesm/2023-24/FESM2324.tif /tmp/23101419923_fesm.tif
+```
+
+`burnt%` is classes 1–5; `sev%` is classes 2–5, the classes with a severity order.
+
+| Fire | Parts | Pixels | Unburnt 0 | Grass 1 | Low 2 | Mod 3 | High 4 | Extreme 5 | burnt% | sev% |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Willi Willi Rd | 1 | 2,919,859 | 12.4 | 12.6 | 11.8 | 18.7 | 22.2 | 22.4 | 87.6 | 75.0 |
+| Glens Creek Rd | 6 | 1,314,851 | 11.0 | 0.0 | 16.7 | 27.4 | 31.1 | 13.7 | 89.0 | 89.0 |
+| Christies | 1 | 1,101,845 | 29.0 | 22.8 | 15.5 | 15.7 | 14.0 | 2.9 | 71.0 | 48.2 |
+| Dthinna Dthinnawan | 1 | 1,370,634 | 3.9 | 0.0 | 2.5 | 12.5 | 49.7 | 31.3 | 96.1 | 96.1 |
+| Guy Fawkes NP | 1 | 410,375 | 3.1 | 0.0 | 7.9 | 31.1 | 34.3 | 23.6 | 96.9 | 96.9 |
+| Sandon River | 3 | 445,905 | 6.0 | 0.0 | 29.5 | 21.6 | 23.2 | 19.7 | 94.0 | 94.0 |
+| Coolagolite | 6 | 706,476 | 3.4 | 2.7 | 8.6 | 26.7 | 45.4 | 13.2 | 96.6 | 93.8 |
+| Hudson Fire | 2 | 2,297,932 | 9.9 | 0.0 | 58.0 | 13.3 | 14.7 | 4.1 | 90.1 | 90.1 |
+
+Findings:
+- **All 8 pass:** FESM marks 71–97% of each NPWS outline as burnt, so the two datasets agree on where these fires were.
+- **Area check:** Willi Willi has 2,919,859 pixels × (9.98242 m)² ≈ 29,100 ha, against NPWS `AreaHa` 29,106, so the reprojection, clip and pixel size are consistent.
+- **Severity range:** Hudson is skewed low (58% low), Dthinna Dthinnawan skewed severe (81% high or extreme), the others balanced.
+- **Hudson is not grassland:** it was expected to be mostly class 1, but FESM maps it as 0% grass. The class 1 cases are Willi Willi (12.6%) and Christies (22.8%).
+- **Christies is the weakest** (29% unburnt, 48% with a severity class).
+
+All 8 go to pass 3.
+
 Docs:
 - [ogr2ogr](https://gdal.org/en/stable/programs/ogr2ogr.html)
 - [GDAL virtual file systems (`/vsistdout/`)](https://gdal.org/en/stable/user/virtual_file_systems.html#vsistdout-standard-output-streaming)
