@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      # setup-uv publishes no floating major tag (no @v10), so pin the exact release.
+      - uses: astral-sh/setup-uv@v10.3.3
+
+      - name: Install Python (from .python-version)
+        run: uv python install
+
+      - name: Install dependencies (fails if uv.lock is out of date)
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check
+
+      - name: Format
+        run: uv run ruff format --check
+
+      - name: Types
+        run: uv run mypy src tests
+
+      - name: Tests
+        run: uv run pytest
