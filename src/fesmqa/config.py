@@ -21,6 +21,8 @@ class StacConfig(_Section):
     endpoint: HttpUrl
     collections: list[str] = Field(min_length=1)
     cloud_cover_property: str
+    # A date is clear enough if its cloudiest tile's cloud cover (%) is at or below this.
+    max_scene_cloud: float = Field(ge=0, le=100)
 
 
 class BandsConfig(_Section):
@@ -56,6 +58,13 @@ class QaConfig(_Section):
     """Gate limits are added in 3.1. Until then, any key here is an error."""
 
 
+class OutlinesConfig(_Section):
+    """Where fire outlines come from (1.3): a vector file and the field matching npws_fire_no."""
+
+    path: str
+    fire_no_field: str
+
+
 class OutputsConfig(_Section):
     root: str
 
@@ -84,6 +93,7 @@ class Config(_Section):
     dates: DatesConfig
     severity: SeverityConfig
     qa: QaConfig
+    outlines: OutlinesConfig
     outputs: OutputsConfig
     fires: list[FireConfig] = Field(default_factory=list)
 

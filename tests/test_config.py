@@ -58,6 +58,12 @@ def test_fmask_value_out_of_range(data: dict[str, Any]) -> None:
         Config.model_validate(data)
 
 
+def test_max_scene_cloud_out_of_range(data: dict[str, Any]) -> None:
+    data["stac"]["max_scene_cloud"] = 150
+    with pytest.raises(ValidationError, match="max_scene_cloud"):
+        Config.model_validate(data)
+
+
 def test_fire_end_before_start(data: dict[str, Any]) -> None:
     data["fires"] = [make_fire(start_date="2025-12-20", end_date="2025-12-01")]
     with pytest.raises(ValidationError, match="end_date is before start_date"):
