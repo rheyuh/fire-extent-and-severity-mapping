@@ -43,7 +43,9 @@ def main(ctx: click.Context, verbose: bool, config_path: Path) -> None:
 
 
 @main.command()
-@click.option("--fire", "fire_id", required=True, help="ID of the fire to process, as listed in config.")
+@click.option(
+    "--fire", "fire_id", required=True, help="ID of the fire to process, as listed in config."
+)
 @click.pass_obj
 def run(config_path: Path, fire_id: str) -> None:
     """Process one fire."""
@@ -53,6 +55,4 @@ def run(config_path: Path, fire_id: str) -> None:
     except KeyError as e:
         raise click.BadParameter(str(e.args[0]), param_hint="'--fire'") from e
     pre, post = config.search_windows(fire)
-    logger.info(
-        "Would run fire: %s (%s), search windows %d/%d days", fire.id, fire.name, pre, post
-    )
+    logger.info("Would run fire: %s (%s), search windows %d/%d days", fire.id, fire.name, pre, post)

@@ -18,7 +18,12 @@ def config_file(tmp_path: Path) -> Path:
     """A copy of the committed config with one test fire added."""
     data: dict[str, Any] = yaml.safe_load(REPO_CONFIG.read_text())
     data["fires"] = [
-        {"id": "test-fire", "name": "Test Fire", "start_date": "2025-12-01", "end_date": "2025-12-20"}
+        {
+            "id": "test-fire",
+            "name": "Test Fire",
+            "start_date": "2025-12-01",
+            "end_date": "2025-12-20",
+        }
     ]
     path = tmp_path / "config.yaml"
     path.write_text(yaml.safe_dump(data))
@@ -71,7 +76,9 @@ def test_missing_config_is_reported(tmp_path: Path) -> None:
 
 
 def test_verbose_sets_debug_level(config_file: Path) -> None:
-    result = CliRunner().invoke(main, ["-v", "--config", str(config_file), "run", "--fire", "test-fire"])
+    result = CliRunner().invoke(
+        main, ["-v", "--config", str(config_file), "run", "--fire", "test-fire"]
+    )
     assert result.exit_code == 0
     assert logging.getLogger("fesmqa").level == logging.DEBUG
 
