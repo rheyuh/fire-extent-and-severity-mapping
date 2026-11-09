@@ -299,7 +299,19 @@ Docs:
 
 ## 1.4 Chosen fires
 
-Not yet chosen.
+Chosen 2026-11-10, after the three passes below. All from the 2023/24 fire year, so all are compared against FESM 2023/24.
+
+| # | Fire | FireNo | Start | End | ha | UTM zones | Why |
+|---|---|---|---|---|---|---|---|
+| 1 | Willi Willi Rd, Moparrabah | 23101419923 | 2023-10-14 | 2023-11-08 | 29,106 | 56 | Largest; balanced severity and some burnt grassland (class 1); clear scenes 8 days before and 3 days after |
+| 2 | Guy Fawkes NP | 23120927869 | 2023-12-09 | 2023-12-24 | 4,086 | 56 | Clear scenes 3 days before and 2 days after; good severity mix; small |
+| 3 | Hudson Fire | 23111224029 | 2023-11-12 | 2023-11-25 | 22,819 | 55 | Low-severity end (58% low); western woodland; zone 55 |
+| 4 | Dthinna Dthinnawan | 23120927782 | 2023-12-09 | 2023-12-22 | 13,602 | 56 | Severe end (81% high or extreme); clear scenes, but 4–5 weeks either side |
+| 5 | Coolagolite | 23100318556 | 2023-10-03 | 2023-11-16 | 6,565 | 55 + 56 | South coast; good severity mix; spans two UTM zones (the tile-edge case) |
+
+Together they cover low to severe fires, UTM zones 55, 56 and both, and five regions (north coast, tablelands, northwest slopes, west, south coast).
+
+Not chosen: **Christies** (weakest in pass 2 and pass 3), **Sandon River** (post-fire scenes about 22% cloud). **Glens Creek Rd** is the alternate, for example in place of Coolagolite to avoid two UTM zones, or Dthinna Dthinnawan for shorter gaps.
 
 ### How candidates are found
 
@@ -403,6 +415,36 @@ Findings:
 - **Christies is the weakest** (29% unburnt, 48% with a severity class).
 
 All 8 go to pass 3.
+
+### Pass 3: Sentinel-2 imagery
+
+Method: for each fire, a STAC search of all three collections (1.1) over the bounding box of its NPWS polygons, in a 60-day window before `StartDate` and a 60-day window after `EndDate` (the config defaults). Items were grouped by acquisition date, since one date can return several tiles, and each date was ranked by its cloudiest tile's `eo:cloud_cover`, a deliberately pessimistic choice. Run 2026-11-10 with pystac-client, using a local lookup script (not part of the package). For one window, the same search with curl:
+
+```sh
+curl -sS "https://explorer.dea.ga.gov.au/stac/search?collections=ga_s2am_ard_3,ga_s2bm_ard_3,ga_s2cm_ard_3&bbox=152.394,-31.073,152.667,-30.87&datetime=2023-08-15/2023-10-13&limit=100"
+```
+
+Best dates by cloud (whole-tile `eo:cloud_cover`); the gap is the number of days between the fire and that date:
+
+| Fire | Tiles | Dates pre / post | Best pre | Best post | Verdict |
+|---|---|---|---|---|---|
+| Willi Willi Rd | 56JML | 24 / 22 | 2023-10-06, 0%, 8 days | 2023-11-11, 0%, 3 days | Excellent |
+| Glens Creek Rd | 56JMM, 56JMN | 24 / 22 | 2023-09-16, 0%, 36 days | 2023-11-26, 5%, 13 days | Good |
+| Christies | 56JLN, 56JLP, 56JMN, 56JMP | 12 / 10 | 2023-09-21, 0%, 40 days | 2023-12-25, 10%, 40 days (next 21%) | Weak |
+| Dthinna Dthinnawan | 56JKP | 22 / 24 | 2023-10-31, 0%, 39 days | 2024-01-22, 0%, 31 days | Clear, long gaps |
+| Guy Fawkes NP | 56JMM | 21 / 24 | 2023-12-06, 0%, 3 days | 2023-12-26, 0%, 2 days | Excellent |
+| Sandon River | 56JNM, 56JNN | 12 / 12 | 2024-01-20, 0%, 1 day | 2024-02-14, 22%, 1 day | Post-fire cloud |
+| Coolagolite | 55HGV, 56HKE | 24 / 22 | 2023-09-16, 0%, 17 days | 2023-11-21, 16%, 5 days | OK; two UTM zones |
+| Hudson Fire | 55JEH | 24 / 24 | 2023-10-22, 0%, 21 days | 2023-12-16, 0%, 21 days | Good |
+
+Findings:
+- Every fire has a clear pre-fire date; most have a 0% date within days of the fire.
+- **Coolagolite spans UTM zones 55 and 56** (tiles 55HGV and 56HKE), confirming the centroid check in pass 1.
+- **Gaps matter as well as cloud:** Dthinna Dthinnawan's clear scenes are 4–5 weeks either side of the fire, in the growing season, so regrowth or seasonal change could be counted as severity. Whether 2.1 should rank by cloud alone or by cloud and closeness is open.
+- Cloud is whole-tile, not within the fire; the within-fire cloud gate (3.1) gives the real figure. The ranking is by cloud only, so a slightly cloudier date closer to the fire may exist beyond the three shown.
+- DEA's STAC only advertises GET for searches; pystac-client warned and fell back to GET. 2.1 should pass `method="GET"`.
+
+These dates are candidates; 2.1 makes the final scene choice.
 
 Docs:
 - [ogr2ogr](https://gdal.org/en/stable/programs/ogr2ogr.html)
