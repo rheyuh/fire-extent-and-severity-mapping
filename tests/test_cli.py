@@ -33,7 +33,7 @@ def config_file(tmp_path: Path) -> Path:
 def test_help_lists_run() -> None:
     result = CliRunner().invoke(main, ["--help"])
     assert result.exit_code == 0
-    assert "run" in result.output
+    assert "nope" in result.output  # deliberately broken: CI must go red (ci-check branch only)
 
 
 def test_run_help_works_without_config(tmp_path: Path) -> None:
