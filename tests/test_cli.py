@@ -8,9 +8,24 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
+from fesmqa import cli
 from fesmqa.cli import main
+from fesmqa.config import Config, FireConfig
+from fesmqa.scenes import SceneDate
 
 REPO_CONFIG = Path(__file__).parent.parent / "config.yaml"
+
+
+@pytest.fixture(autouse=True)
+def fake_scenes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replace scene finding, so CLI tests read no shapefile and make no network calls."""
+
+    def find_scenes(config: Config, fire: FireConfig) -> tuple[SceneDate, SceneDate]:
+        pre = SceneDate(day=fire.start_date, cloud=0.0, item_ids=("pre",))
+        post = SceneDate(day=fire.end_date, cloud=0.0, item_ids=("post",))
+        return pre, post
+
+    monkeypatch.setattr(cli, "find_scenes", find_scenes)
 
 
 @pytest.fixture
@@ -58,6 +73,16 @@ def test_run_unknown_fire_is_usage_error(config_file: Path) -> None:
     result = CliRunner().invoke(main, ["--config", str(config_file), "run", "--fire", "nope"])
     assert result.exit_code == 2
     assert "fires in config: test-fire" in result.output
+
+
+def test_scene_failure_is_reported(config_file: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def no_scenes(config: Config, fire: FireConfig) -> tuple[SceneDate, SceneDate]:
+        raise ValueError("no pre-fire scenes from 2025-10-02 to 2025-11-30")
+
+    monkeypatch.setattr(cli, "find_scenes", no_scenes)
+    result = CliRunner().invoke(main, ["--config", str(config_file), "run", "--fire", "test-fire"])
+    assert result.exit_code == 1
+    assert "no pre-fire scenes" in result.output
 
 
 def test_invalid_config_is_reported(config_file: Path) -> None:

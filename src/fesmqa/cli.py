@@ -8,6 +8,7 @@ import yaml
 
 from fesmqa.config import Config, load_config
 from fesmqa.logs import setup_logging
+from fesmqa.scenes import find_scenes
 
 logger = logging.getLogger(__name__)
 
@@ -54,5 +55,8 @@ def run(config_path: Path, fire_id: str) -> None:
         fire = config.fire(fire_id)
     except KeyError as e:
         raise click.BadParameter(str(e.args[0]), param_hint="'--fire'") from e
-    pre, post = config.search_windows(fire)
-    logger.info("Would run fire: %s (%s), search windows %d/%d days", fire.id, fire.name, pre, post)
+    try:
+        pre, post = find_scenes(config, fire)
+    except (FileNotFoundError, ValueError) as e:  # missing outline file, no outline, no scenes
+        raise click.ClickException(str(e)) from e
+    logger.info("Scenes for %s (%s): pre %s, post %s", fire.id, fire.name, pre.day, post.day)
