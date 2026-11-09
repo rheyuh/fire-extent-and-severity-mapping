@@ -17,7 +17,7 @@ dependencies = [
 fesmqa = "fesmqa.cli:main"
 
 [build-system]
-requires = ["uv_build>=0.12.13,<0.13.0"]
+requires = ["uv_build>=0.13.7,<0.14.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
@@ -27,6 +27,10 @@ dev = [
     "ruff>=0.17.4",
     "types-pyyaml>=6.0.12.20261103",
 ]
+
+[tool.uv]
+# The same uv everywhere (laptop, CI, Docker): uv refuses to run outside this range.
+required-version = ">=0.13.7,<0.14"
 
 [tool.ruff]
 line-length = 100
