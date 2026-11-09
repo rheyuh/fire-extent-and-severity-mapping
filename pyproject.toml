@@ -11,7 +11,9 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "click>=8.5.1",
+    "geopandas>=1.2.0",
     "pydantic>=2.14.3",
+    "pystac-client>=0.9.1",
     "pyyaml>=6.0.3",
 ]
 
