@@ -1,0 +1,48 @@
+[project]
+name = "fesmqa"
+version = "0.1.0"
+description = "Validates NSW FESM burn severity maps against independent Sentinel-2 dNBR, with QA gates and provenance."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "rheyuh", email = "r.iai@outlook.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.5.1",
+    "pydantic>=2.14.3",
+    "pyyaml>=6.0.3",
+]
+
+[project.scripts]
+fesmqa = "fesmqa.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
+    "types-pyyaml>=6.0.12.20261103",
+]
+
+[tool.uv]
+# The same uv everywhere (laptop, CI, Docker): uv refuses to run outside this range.
+required-version = ">=0.13.7,<0.14"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# E/W pycodestyle, F pyflakes, I import order, B bugbear, UP modern syntax
+select = ["E", "W", "F", "I", "B", "UP"]
+
+[tool.mypy]
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

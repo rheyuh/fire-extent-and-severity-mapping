@@ -1,0 +1,1 @@
+"""FESM agreement checker."""

@@ -1,0 +1,36 @@
+stac:                                   # verified in 1.1 (docs/data-sources.md)
+  endpoint: https://explorer.dea.ga.gov.au/stac
+  collections: [ga_s2am_ard_3, ga_s2bm_ard_3, ga_s2cm_ard_3]
+  cloud_cover_property: eo:cloud_cover
+
+bands:                                  # verified in 1.1
+  nir: nbart_nir_2                      # B8A, 864.7 nm
+  swir2: nbart_swir_3                   # B12, 2202.4 nm (not nbart_swir_2, which is B11)
+  fmask: oa_fmask
+  nodata: -999
+  fmask_keep: [1]                       # 1 = clear; 0 null, 2 cloud, 3 shadow, 4 snow, 5 water are dropped
+
+grid:
+  resolution: 20                        # metres; native for B8A and B12
+  crs: null                             # PLACEHOLDER: match FESM (1.2)
+
+dates:                                  # PLACEHOLDER: defaults, chosen with the fires (1.4)
+  pre_fire_days: 60                     # search window before the fire starts
+  post_fire_days: 60                    # search window after the fire ends
+
+severity:                               # PLACEHOLDER: decided in 2.3 after reading FESM (1.2)
+  thresholds: [0.10, 0.27, 0.44, 0.66]  # Key & Benson dNBR breaks, illustrative only
+  classes: {}                           # severity class name -> FESM class code, from 1.2
+
+qa: {}                                  # PLACEHOLDER: gate limits decided in 3.1
+
+outputs:
+  root: outputs
+
+fires: []                               # PLACEHOLDER: chosen in 1.4
+# Example entry (a fire may override the default date windows):
+#   - id: example-fire
+#     name: Example Fire
+#     start_date: 2025-12-01
+#     end_date: 2025-12-20
+#     post_fire_days: 90

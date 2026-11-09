@@ -1,0 +1,19 @@
+# Project data: inputs and pipeline outputs are never committed
+data/
+outputs/
+
+# Secrets: keep .env.example committed, never .env
+.env
+
+# Python
+__pycache__/
+*.egg-info/
+.venv/
+
+# Tool caches (pytest, mypy, ruff)
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# macOS
+.DS_Store
