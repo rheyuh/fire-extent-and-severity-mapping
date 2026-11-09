@@ -1,6 +1,7 @@
 """Load and validate config.yaml into typed, read-only settings."""
 
 from datetime import date
+from itertools import pairwise
 from pathlib import Path
 from typing import Annotated, Self
 
@@ -46,7 +47,7 @@ class SeverityConfig(_Section):
 
     @model_validator(mode="after")
     def thresholds_increase(self) -> Self:
-        if any(a >= b for a, b in zip(self.thresholds, self.thresholds[1:])):
+        if any(a >= b for a, b in pairwise(self.thresholds)):
             raise ValueError(f"severity thresholds must strictly increase, got {self.thresholds}")
         return self
 
