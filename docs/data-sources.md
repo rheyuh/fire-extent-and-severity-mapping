@@ -300,3 +300,81 @@ Docs:
 ## 1.4 Chosen fires
 
 Not yet chosen.
+
+### How candidates are found
+
+Three passes, each narrowing the list:
+1. **NPWS query:** wildfires in a FESM season, 1,000–50,000 ha, largest first.
+2. **FESM check:** for each candidate, FESM inside the outline has burnt pixels and a mix of severity classes.
+3. **Imagery check:** clear pre- and post-fire Sentinel-2 scenes exist, and whether the fire crosses the UTM zone 55/56 boundary at 150°E.
+
+### Pass 1: NPWS candidates, 2023/24 season
+
+Wildfires starting in the 2023/24 fire year (matching FESM 2023/24), 1,000–50,000 ha, 25 largest, with centroids to show location:
+
+```sh
+ogr2ogr -f CSV /vsistdout/ data/npws/2026-11-09/NPWSFireHistory.shp -dialect SQLite -sql "SELECT FireName, FireNo, StartDate, EndDate, round(AreaHa) AS ha, round(ST_X(ST_Centroid(geometry)), 3) AS lon, round(ST_Y(ST_Centroid(geometry)), 3) AS lat FROM NPWSFireHistory WHERE FireType = 1 AND StartDate BETWEEN '2023-07-01' AND '2024-06-30' AND AreaHa BETWEEN 1000 AND 50000 ORDER BY AreaHa DESC LIMIT 25"
+```
+
+- `ogr2ogr -f CSV /vsistdout/` prints the result as CSV to the terminal; nothing is written to disk.
+- `FireType = 1` keeps wildfires only; the date range is the 2023/24 fire year (1 July to 30 June).
+- Centroids are in EPSG:4283 degrees: fine for location, not for measuring.
+
+Results (run 2026-11-09 on the 2026-11-09 NPWS snapshot): 25 wildfires, 1,975–29,106 ha, mostly northern NSW in spring 2023.
+
+| FireName | FireNo | Start | End | ha | lon | lat |
+|---|---|---|---|---|---|---|
+| WILLI WILLI RD, MOPARRABAH | 23101419923 | 2023-10-14 | 2023-11-08 | 29106 | 152.545 | -30.980 |
+| Hudson Fire | 23111224029 | 2023-11-12 | 2023-11-25 | 22819 | 147.470 | -29.684 |
+| Dthinna Dthinnawan | 23120927782 | 2023-12-09 | 2023-12-22 | 13602 | 150.808 | -28.782 |
+| GLENS CREEK RD, NYMBOIDA | 23102221129 | 2023-10-22 | 2023-11-13 | 12779 | 152.729 | -29.866 |
+| Christies | 23103122467 | 2023-10-31 | 2023-11-15 | 10939 | 151.904 | -28.918 |
+| DEVELOPMENTAL RD, KULWIN | 23112525300 | 2023-11-25 | 2023-12-02 | 9963 | 145.465 | -32.401 |
+| FROST RD, WOODSIDE | 23102822002 | 2023-10-28 | 2023-11-15 | 8218 | 151.840 | -29.079 |
+| Sawyers Creek, Donnybrook State Forest | 23102621791 | 2023-10-26 | 2023-11-16 | 7863 | 151.852 | -28.999 |
+| Benders Creek | 23102621754 | 2023-10-26 | 2023-11-16 | 7687 | 151.995 | -29.173 |
+| COOLAGOLITE RD, COOLAGOLITE | 23100318556 | 2023-10-03 | 2023-11-16 | 6565 | 149.994 | -36.479 |
+| Amaroo Station 6956 Goodooga Road | 23111324070 | 2023-11-13 | 2023-11-20 | 5003 | 147.392 | -29.554 |
+| Ogilvie Dr, Tabulam | 23102922143 | 2023-10-29 | 2023-11-15 | 4627 | 152.525 | -28.957 |
+| MAGISTRATE TRL, DEEPWATER | 23102621806 | 2023-10-26 | 2023-11-16 | 4381 | 152.014 | -29.388 |
+| SANDON RIVER | 24012133320 | 2024-01-21 | 2024-02-13 | 4361 | 153.274 | -29.749 |
+| BUKKULLA-BRENDA RD, WEILMORINGLE | 23110723385 | 2023-11-07 | 2023-11-21 | 4113 | 147.109 | -29.111 |
+| GUY FAWKES NP | 23120927869 | 2023-12-09 | 2023-12-24 | 4086 | 152.274 | -30.200 |
+| Trap Mountain Dumaresq Valley | 23120927885 | 2023-12-09 | 2023-12-28 | 4011 | 151.429 | -29.217 |
+| WALLANGRA RD, WALLANGRA | 23101119572 | 2023-10-11 | 2023-10-23 | 3688 | 151.044 | -29.289 |
+| JACKYS CREEK RD, RAMORNIE | 23092116492 | 2023-09-21 | 2023-10-03 | 3442 | 152.683 | -29.719 |
+| Guy Fawks River National Park | 23100118153 | 2023-10-01 | 2023-10-24 | 3032 | 152.364 | -29.859 |
+| MCGUIRES CROSSING RD, BELMORE RIVER | 23101720542 | 2023-10-17 | 2023-11-07 | 2996 | 153.017 | -31.071 |
+| BONSHAW RD, BONSHAW | 23102621723 | 2023-10-26 | 2023-11-15 | 2432 | 151.176 | -29.128 |
+| HUTLEYS KNOB SHERWOOD 2450 | 23082811535 | 2023-08-28 | 2023-09-22 | 2064 | 153.047 | -30.000 |
+| ROCKY RIVER RD, ROCKY RIVER | 23101620230 | 2023-10-16 | 2023-11-16 | 1996 | 152.339 | -29.109 |
+| Punchs Creek | 23093017975 | 2023-09-30 | 2023-10-18 | 1975 | 152.486 | -30.061 |
+
+Observations:
+- **Tenterfield cluster:** Christies, Frost Rd Woodside, Sawyers Creek and Benders Creek lie within about 25 km of each other and started 26–31 Oct, probably one fire complex. Only one is shortlisted, so the test cases stay independent.
+- **Western fires** (Hudson, Kulwin, Amaroo Station, Weilmoringle) are likely grassland, mapped by FESM mostly as class 1 (no severity order). One is kept as a contrast case.
+- **Coolagolite's centroid is at 149.994°E**, 0.006° from the UTM zone 55/56 boundary, so it almost certainly spans two zones.
+- `FireNo` begins with the start date as YYMMDD (e.g. `23101419923` for 2023-10-14), which looks like an RFS incident number. This is inferred from the pattern, not stated in the metadata. It is a candidate stable ID.
+- CSV output shows dates as `2023/10/14`; inside the SQLite dialect they compare as `2023-10-14`.
+
+### Shortlist for pass 2
+
+Chosen 2026-11-09 (8 fires):
+
+| # | Fire | FireNo | ha | Start | End | Why |
+|---|---|---|---|---|---|---|
+| 1 | Willi Willi Rd, Moparrabah | 23101419923 | 29,106 | 2023-10-14 | 2023-11-08 | Largest; Mid North Coast hinterland forest |
+| 2 | Glens Creek Rd, Nymboida | 23102221129 | 12,779 | 2023-10-22 | 2023-11-13 | Clarence Valley forest, separate from the Tenterfield cluster |
+| 3 | Christies | 23103122467 | 10,939 | 2023-10-31 | 2023-11-15 | One fire from the Tenterfield cluster (the largest) |
+| 4 | Dthinna Dthinnawan | 23120927782 | 13,602 | 2023-12-09 | 2023-12-22 | Northwest slopes woodland; December |
+| 5 | Guy Fawkes NP | 23120927869 | 4,086 | 2023-12-09 | 2023-12-24 | National park gorge country; smaller fire |
+| 6 | Sandon River | 24012133320 | 4,361 | 2024-01-21 | 2024-02-13 | Coastal, summer; different vegetation |
+| 7 | Coolagolite | 23100318556 | 6,565 | 2023-10-03 | 2023-11-16 | South coast for regional spread; UTM-edge test case |
+| 8 | Hudson Fire | 23111224029 | 22,819 | 2023-11-12 | 2023-11-25 | Western grassland contrast: dNBR where FESM says "extent only" |
+
+Post-fire scenes must come after `EndDate`; several fires ran for three to six weeks (Coolagolite: 3 Oct to 16 Nov).
+
+Docs:
+- [ogr2ogr](https://gdal.org/en/stable/programs/ogr2ogr.html)
+- [GDAL virtual file systems (`/vsistdout/`)](https://gdal.org/en/stable/user/virtual_file_systems.html#vsistdout-standard-output-streaming)
+- [GDAL: SQLite SQL dialect](https://gdal.org/en/stable/user/sql_sqlite_dialect.html)
