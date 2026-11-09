@@ -195,7 +195,107 @@ Docs:
 
 ## 1.3 Fire outline source
 
-Not yet checked.
+Checked 2026-11-09.
+
+### Decision
+
+**Use NPWS fire history outlines**, because they are independent of both FESM and the dNBR map, and they carry fire names and dates.
+
+FESM's own burnt area was the alternative. It was rejected because an outline drawn from FESM can only test agreement where FESM says it burned (FESM omissions could never be found), and because FESM is one statewide raster per season with no names, dates or per-fire separation.
+
+Two safeguards for the weaknesses of NPWS outlines:
+- **Coverage:** only choose fires present in both datasets, i.e. an NPWS wildfire polygon that overlaps FESM burnt pixels (1.4).
+- **Precision:** compare inside a slightly shrunk outline (about 50 m inwards), so the outline's coarser edges are not counted as disagreement (2.5).
+
+### Dataset
+
+NPWS Fire History - Wildfires and Prescribed Burns, on SEED. Fire boundaries captured by NPWS regions from incident and burn mapping, GPS, flown boundaries, hand-drawn maps digitised at 1:25,000, and remote sensing. Polygons "often extend outside NPWS Estate"; data from the Rural Fire Service and Forestry Corporation NSW is imported "at times", so fires on private land may be missing. Stated spatial resolution: 50 m.
+
+Source: [dataset page](https://datasets.seed.nsw.gov.au/dataset/fire-history-wildfires-and-prescribed-burns-1e8b6) and [full metadata](https://datasets.seed.nsw.gov.au/dataset/1d05e145-80cb-4275-af9b-327a1536798d/metaexport/html).
+
+### Download
+
+| Item | Value |
+|---|---|
+| URL | `https://datasets.seed.nsw.gov.au/dataset/1d05e145-80cb-4275-af9b-327a1536798d/resource/3853d6c0-6517-4cba-8482-68f93a6d43b1/download/fire_npwsfirehistory.zip` |
+| SEED dataset ID | `1d05e145-80cb-4275-af9b-327a1536798d` |
+| Snapshot | Downloaded 2026-11-09; files exported 2026-11-05 (`DBF_DATE_LAST_UPDATE`) |
+| Zip size | 61 MB downloaded (page says 57.6 MB, likely from an older edition) |
+| SHA-256 (zip) | `20c698c2e8f0015414f2504eead281d0bac4998698cd1a13d2ceac0e592af656` |
+| Unzipped | 8 files, 118,202,554 bytes: `NPWSFireHistory.shp` (84 MB), `.dbf` (34 MB), `.shx`, `.prj`, `.cpg`, `.sbn`, `.sbx`, `.shp.xml` |
+
+The dataset is republished regularly (the metadata says monthly), so this checksum identifies the 2026-11-09 snapshot only. Later downloads will differ; keep the snapshot date with the checksum.
+
+Also available as live WMS/WFS services: `https://mapprod3.environment.nsw.gov.au/arcgis/rest/services/Fire/NPWS_Fire_History/MapServer`.
+
+The zip's entries are plain file names (no absolute paths or `..`), checked with `unzip -l` before extracting.
+
+### Format and CRS
+
+From `ogrinfo -so -al` (GDAL 3.13.3):
+
+| Property | Value |
+|---|---|
+| Format | ESRI Shapefile, polygons |
+| Features | 38,238 (wildfires and prescribed burns, 1920 onwards) |
+| CRS | **EPSG:4283**, GDA94 geographic (degrees); stored longitude first (`Data axis to CRS axis mapping: 2,1`) |
+| Extent | 140.979588°E to 153.632608°E, 38.292520°S to 28.173295°S |
+
+Outlines are reprojected to FESM's EPSG:3308 before clipping (2.5).
+
+### Fields
+
+| Field | Type | Use |
+|---|---|---|
+| `FireType` | Integer | 1 = Wildfire, 2 = Prescribed Burn; filter to 1 |
+| `d_FireType` | String | `FireType` as text |
+| `FireName` | String | Fire name, for `name` in config |
+| `FireNo` | String | Fire or incident number; candidate stable ID |
+| `Label` | String | Display label |
+| `StartDate` | Date | Fire start; anchors the pre-fire search window (2.1) |
+| `EndDate` | Date | Fire end; anchors the post-fire search window (2.1) |
+| `AreaHa` | Real | Area in hectares; for choosing fire sizes (1.4) |
+| `PerimeterM` | Real | Perimeter in metres |
+
+The metadata also lists coded values for cause, intensity and capture method, but those fields are not in the public shapefile.
+
+### Recent fires
+
+Wildfires (`FireType = 1`) by start year:
+
+| Year | Wildfires | First start | Last start |
+|---|---|---|---|
+| 2021 | 91 | 2021-01-12 | 2021-12-24 |
+| 2022 | 48 | 2022-01-11 | 2022-12-31 |
+| 2023 | 514 | 2023-01-07 | 2023-12-29 |
+| 2024 | 199 | 2024-01-01 | 2024-12-31 |
+| 2025 | 365 | 2025-01-01 | 2025-12-31 |
+| 2026 | 216 | 2026-01-01 | 2026-10-27 |
+
+Recent seasons are included, up to 2026-10-27.
+
+### Licence and citation
+
+CC BY 4.0. Required attribution: "© State Government of NSW and NSW Department of Climate Change, Energy, the Environment and Water 2010".
+
+Citation (from SEED): NPWS Fire History - Wildfires and Prescribed Burns, accessed from The Sharing and Enabling Environmental Data Portal [https://datasets.seed.nsw.gov.au/dataset/1d05e145-80cb-4275-af9b-327a1536798d], date accessed 2026-11-09.
+
+### To repeat the checks
+
+```sh
+mkdir -p data/npws/2026-11-09 && curl -fL -o data/npws/2026-11-09/fire_npwsfirehistory.zip "https://datasets.seed.nsw.gov.au/dataset/1d05e145-80cb-4275-af9b-327a1536798d/resource/3853d6c0-6517-4cba-8482-68f93a6d43b1/download/fire_npwsfirehistory.zip"
+shasum -a 256 data/npws/2026-11-09/fire_npwsfirehistory.zip
+unzip -l data/npws/2026-11-09/fire_npwsfirehistory.zip
+unzip -n data/npws/2026-11-09/fire_npwsfirehistory.zip -d data/npws/2026-11-09/
+ogrinfo -so -al data/npws/2026-11-09/NPWSFireHistory.shp
+ogrinfo -ro -q data/npws/2026-11-09/NPWSFireHistory.shp -dialect SQLite -sql "SELECT substr(StartDate, 1, 4) AS year, COUNT(*) AS wildfires, MIN(StartDate) AS first_start, MAX(StartDate) AS last_start FROM NPWSFireHistory WHERE FireType = 1 AND substr(StartDate, 1, 4) >= '2021' GROUP BY year ORDER BY year"
+```
+
+GDAL's default SQL dialect rejects comparing a Date field with a text date; the SQLite dialect treats dates as `YYYY-MM-DD` text.
+
+Docs:
+- [ogrinfo](https://gdal.org/en/stable/programs/ogrinfo.html)
+- [GDAL: SQLite SQL dialect](https://gdal.org/en/stable/user/sql_sqlite_dialect.html)
 
 ## 1.4 Chosen fires
 
