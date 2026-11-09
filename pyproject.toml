@@ -9,6 +9,8 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "click>=8.5.1",
+    "pydantic>=2.14.3",
+    "pyyaml>=6.0.3",
 ]
 
 [project.scripts]
@@ -23,4 +25,5 @@ dev = [
     "mypy>=2.4.1",
     "pytest>=9.2.0",
     "ruff>=0.17.4",
+    "types-pyyaml>=6.0.12.20261103",
 ]
