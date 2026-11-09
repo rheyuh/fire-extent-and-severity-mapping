@@ -111,7 +111,11 @@ def _pick_in_window(
             config.stac.max_scene_cloud,
         )
     logger.info(
-        "%s-fire scene: %s, from %d dates", label.capitalize(), scene.describe(), len(candidates)
+        "%s-fire scene: %s, %d-day gap to the fire, from %d dates",
+        label.capitalize(),
+        scene.describe(),
+        abs((scene.day - target).days),
+        len(candidates),
     )
     return scene
 

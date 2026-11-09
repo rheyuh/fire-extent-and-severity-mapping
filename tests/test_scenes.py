@@ -1,5 +1,6 @@
 """Tests for scene selection. Items are built by hand, so no network is needed."""
 
+import logging
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -127,6 +128,22 @@ def test_find_scenes_keeps_fire_dates_out_of_windows(
     pre, post = scenes.find_scenes(config, fire)
     assert pre.item_ids == ("before",)
     assert post.item_ids == ("after",)
+
+
+def test_find_scenes_warns_when_no_date_is_clear(
+    config: Config,
+    fire: FireConfig,
+    fake_search: list[pystac.Item],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    fake_search += [
+        make_item("cloudy", datetime(2023, 10, 10, 0, 0, tzinfo=UTC), 90.0),
+        make_item("after", datetime(2023, 11, 12, 0, 0, tzinfo=UTC), 5.0),
+    ]
+    with caplog.at_level(logging.WARNING, logger="fesmqa"):
+        pre, _ = scenes.find_scenes(config, fire)
+    assert pre.item_ids == ("cloudy",)
+    assert "no pre-fire date is at or below 20" in caplog.text
 
 
 def test_find_scenes_empty_window_raises(
