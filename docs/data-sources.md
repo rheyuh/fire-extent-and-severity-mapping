@@ -109,7 +109,89 @@ The 2B and 2C products have their own product pages and DOIs; add those citation
 
 ## 1.2 FESM reference data
 
-Not yet checked.
+Checked 2026-11-09, for the 2023/24 fire year. Other seasons need the same `gdalinfo` check before use.
+
+### Seasons
+
+FESM is published per fire year (1 July to 30 June) on SEED. Seasons seen: 2016/17, 2019/20, 2020/21, 2021/22, 2023/24, 2024/25 (2022/23 not seen in search results; not ruled out). From 2025-26, near real-time wildfire mapping is published during the season.
+
+Version: FESMv3. Method, in the dataset's words: "a semi-automated approach to mapping fire extent and severity through a machine learning framework based on sentinel 2 satellite imagery", described in [Gibson et al. 2020, Remote Sensing of Environment](https://doi.org/10.1016/j.rse.2020.111702) (Sentinel-2 and random forest). So FESM and this project use the same satellite, with different methods.
+
+Source: [FESM 2023/24 on SEED](https://datasets.seed.nsw.gov.au/dataset/fire-extent-and-severity-mapping-fesm-2023-24) and its [full metadata](https://datasets.seed.nsw.gov.au/dataset/fire-extent-and-severity-mapping-fesm-2023-24/metaexport/html).
+
+### Download
+
+Wildfires, TIFF format ("FESM WFs 2023-24 - Tiff format"), statewide:
+
+| Item | Value |
+|---|---|
+| URL | `https://datasets.seed.nsw.gov.au/dataset/f8e725eb-132d-43bf-b6bc-31048540fb53/resource/f4956478-df15-4757-bc21-4b50cd596598/download/fire_fesm_20232024.zip` |
+| SEED dataset ID | `f8e725eb-132d-43bf-b6bc-31048540fb53` |
+| Zip size | 22.2 MB (page); 23 MB downloaded |
+| SHA-256 (zip) | `718940ab7df33045e98bc9b33786b1ec78413fa13a2b96defd711777292df10e` |
+| Unzipped | 6 files, 352,706,704 bytes: `FESM2324.tif` (270 MB), `.tif.ovr` (83 MB), `.tif.aux.xml`, `.tif.vat.dbf`, `.tif.vat.cpg`, `.tfw` |
+| Login | None needed for the download |
+
+Hazard reduction burns are a separate package ("FESM HRs 2023-24 Tiff format", 22.2 MB) and are not used.
+
+The zip's entries are plain file names (no absolute paths or `..`), checked with `unzip -l` before extracting.
+
+### Raster
+
+From `gdalinfo data/fesm/2023-24/FESM2324.tif` (GDAL 3.13.3):
+
+| Property | Value |
+|---|---|
+| CRS | **EPSG:3308**, GDA94 / NSW Lambert (Lambert Conic Conformal 2SP, metres) |
+| Size | 173,458 × 102,271 pixels |
+| Origin (top-left) | 8,714,580 E, 5,045,059 N |
+| Pixel size | **9.982420184 m** (not exactly 10 m, although the metadata says 10 m) |
+| Data type | Byte |
+| NoData | **255** |
+| Values present | 0 to 5 |
+| Storage | LZW compression, 128×128 tiles, 9 overview levels in the external `.ovr` |
+
+The metadata page gives the CRS code as 4283. That is GDA94's geographic base CRS inside EPSG:3308, not the raster's CRS; the file itself says EPSG:3308.
+
+### Severity classes
+
+From the raster attribute table embedded with the file (`.tif.vat.dbf`, rows dated 16/7/2024):
+
+| Value | Label | Definition |
+|---|---|---|
+| 0 | Unburnt | Unburnt surface with green canopy |
+| 1 | Burnt grassland/open grassy woodland | Burnt grassland/open grassy woodland (the "extent only" class) |
+| 2 | Low severity | Burnt surface with unburnt canopy |
+| 3 | Moderate severity | Partial canopy scorch |
+| 4 | High severity | Full canopy scorch (+/- partial canopy consumption) |
+| 5 | Extreme severity | Full canopy consumption |
+| 255 | NoData | |
+
+Value 0 covers the whole state outside burnt areas (mean pixel value 0.008), so a 0 only means "unburnt patch" inside a fire outline (1.3).
+
+Consequences for the pipeline:
+- Your severity map is resampled onto FESM's grid (EPSG:3308, 9.98242 m) with nearest neighbour (2.5), not onto a round 10 m grid.
+- Class 1 has no severity order relative to 2 to 5, so it is "not comparable" in the disagreement map (2.6).
+
+### Licence and citation
+
+CC BY 4.0. Required attribution: "© State Government of NSW and NSW Department of Climate Change, Energy, the Environment and Water 2024".
+
+Citation (from SEED): © State Government of NSW and NSW Department of Climate Change, Energy, the Environment and Water 2024, Fire Extent and Severity Mapping (FESM) 2023/24, accessed from The Sharing and Enabling Environmental Data Portal [https://datasets.seed.nsw.gov.au/dataset/f8e725eb-132d-43bf-b6bc-31048540fb53], date accessed 2026-11-09.
+
+### To repeat the checks
+
+```sh
+mkdir -p data/fesm/2023-24 && curl -fL -o data/fesm/2023-24/fire_fesm_20232024.zip "https://datasets.seed.nsw.gov.au/dataset/f8e725eb-132d-43bf-b6bc-31048540fb53/resource/f4956478-df15-4757-bc21-4b50cd596598/download/fire_fesm_20232024.zip"
+shasum -a 256 data/fesm/2023-24/fire_fesm_20232024.zip
+unzip -l data/fesm/2023-24/fire_fesm_20232024.zip
+unzip -n data/fesm/2023-24/fire_fesm_20232024.zip -d data/fesm/2023-24/
+gdalinfo data/fesm/2023-24/FESM2324.tif
+```
+
+Docs:
+- [gdalinfo](https://gdal.org/en/stable/programs/gdalinfo.html)
+- [curl manual](https://curl.se/docs/manpage.html)
 
 ## 1.3 Fire outline source
 
