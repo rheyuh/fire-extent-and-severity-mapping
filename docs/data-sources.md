@@ -440,7 +440,7 @@ Best dates by cloud (whole-tile `eo:cloud_cover`); the gap is the number of days
 Findings:
 - Every fire has a clear pre-fire date; most have a 0% date within days of the fire.
 - **Coolagolite spans UTM zones 55 and 56** (tiles 55HGV and 56HKE), confirming the centroid check in pass 1.
-- **Gaps matter as well as cloud:** Dthinna Dthinnawan's clear scenes are 4–5 weeks either side of the fire, in the growing season, so regrowth or seasonal change could be counted as severity. Whether 2.1 should rank by cloud alone or by cloud and closeness is open.
+- **Gaps matter as well as cloud:** Dthinna Dthinnawan's clear scenes are 4–5 weeks either side of the fire, in the growing season, so regrowth or seasonal change could be counted as severity. Whether 2.1 should rank by cloud alone or by cloud and closeness was open (decided in 2.1, see "Checked in 2.1" below).
 - Cloud is whole-tile, not within the fire; the within-fire cloud gate (3.1) gives the real figure. The ranking is by cloud only, so a slightly cloudier date closer to the fire may exist beyond the three shown.
 - DEA's STAC only advertises GET for searches; pystac-client warned and fell back to GET. 2.1 should pass `method="GET"`.
 
@@ -450,3 +450,21 @@ Docs:
 - [ogr2ogr](https://gdal.org/en/stable/programs/ogr2ogr.html)
 - [GDAL virtual file systems (`/vsistdout/`)](https://gdal.org/en/stable/user/virtual_file_systems.html#vsistdout-standard-output-streaming)
 - [GDAL: SQLite SQL dialect](https://gdal.org/en/stable/user/sql_sqlite_dialect.html)
+
+### Checked in 2.1: chosen scenes
+
+2.1 (#8) picks, in each window, the date closest to the fire whose cloudiest tile is at or below `stac.max_scene_cloud` (20%), falling back to the least cloudy date with a warning. Dates are grouped in NSW time (UTC+10), because Sentinel-2 passes over NSW close to midnight UTC. Run 2026-11-10 with `uv run fesmqa run --fire <id>`:
+
+| Fire | Pre-fire | Post-fire |
+|---|---|---|
+| Willi Willi Rd | 2023-10-13, 0.0%, 1-day gap | 2023-11-10, 15.0%, 2-day gap |
+| Guy Fawkes NP | 2023-12-07, 0.1%, 2-day gap | 2023-12-27, 0.0%, 3-day gap |
+| Hudson Fire | 2023-11-11, 0.0%, 1-day gap | 2023-11-26, 18.0%, 1-day gap |
+| Dthinna Dthinnawan | 2023-12-08, 0.0%, 1-day gap | 2023-12-23, 0.4%, 1-day gap |
+| Coolagolite | 2023-09-16, 0.0%, 17-day gap, 2 tiles | 2023-11-22, 16.5%, 6-day gap, 2 tiles |
+
+Findings:
+- No fire needed the fallback; every chosen date is at or below 20% whole-tile cloud.
+- **Gaps are much shorter than in pass 3:** pass 3 ranked by cloud alone, so an exact 0% date far away beat a 0.4% date next to the fire. Dthinna Dthinnawan's gaps fell from 39 and 31 days to 1 and 1, which removes its "long gaps" concern.
+- Coolagolite's pre-fire scene is 17 days out because no date between 2023-09-17 and 2023-10-02 is at or below 20% cloud. Its post-fire date is 2023-11-22 here and 2023-11-21 in pass 3: the same pass, dated in NSW time here and UTC there.
+- Three post-fire scenes are at 15–18% whole-tile cloud; the within-fire cloud gate (3.1) measures how much of that falls on the burn.
