@@ -18,8 +18,22 @@ from typing import Any
 import numpy as np
 import rasterio
 import yaml
+from matplotlib.colors import BoundaryNorm, ListedColormap
+from matplotlib.figure import Figure
+from matplotlib.patches import Patch
+from rasterio.plot import plotting_extent
 
 SEVERITY_NODATA = 255  # same as FESM's nodata, so both class maps use one code
+
+# Map colours, checked with the dataviz palette validator (light background).
+SURFACE = "#fcfcfb"  # background and nodata
+INK = "#52514e"  # outline and text
+SEVERITY_NAMES = ["Unburnt", "Low", "Moderate", "High", "Extreme"]
+# Ordered classes: one hue, light to dark.
+SEVERITY_COLOURS = ["#86b6ef", "#5598e7", "#2a78d6", "#1c5cab", "#104281"]
+# Yours minus FESM in class steps: blue = you're lower, gray = agree, red = you're higher.
+DIFF_NAMES = ["2+ lower", "1 lower", "Agree", "1 higher", "2+ higher"]
+DIFF_COLOURS = ["#184f95", "#6da7ec", "#c3c2b7", "#ee8b8a", "#c42e2e"]
 
 
 def load_config(path: Path) -> dict[str, Any]:
@@ -192,6 +206,65 @@ def provenance() -> dict[str, Any]:
     }
 
 
+def class_steps(yours: np.ndarray, fesm: np.ndarray, classes: list[int]) -> np.ndarray:
+    """Yours minus FESM in class steps (e.g. low vs high = -2), capped at +-2; NaN if not
+    comparable. Steps count positions in `classes`, so FESM's missing class 1 isn't a step."""
+    keep = np.isin(yours, classes) & np.isin(fesm, classes)
+    steps = np.searchsorted(classes, yours) - np.searchsorted(classes, fesm)
+    return np.where(keep, np.clip(steps, -2, 2), np.nan)
+
+
+def write_map(
+    path: Path,
+    yours: np.ndarray,
+    fesm: np.ndarray,
+    inside: np.ndarray,
+    profile: dict[str, Any],
+    classes: list[int],
+    title: str,
+) -> None:
+    """PNG with three panels: your classes, FESM's classes, and how far apart they are."""
+    extent = plotting_extent(yours, profile["transform"])  # map coordinates, metres
+
+    def ranks(codes: np.ndarray) -> np.ndarray:
+        # Class code to 0..4 for colouring; nodata and FESM grassland become NaN (background).
+        return np.where(np.isin(codes, classes), np.searchsorted(classes, codes), np.nan)
+
+    panels = [
+        ("dNBR (Key & Benson)", ranks(yours), SEVERITY_COLOURS, SEVERITY_NAMES),
+        ("FESM 2023/24", ranks(fesm), SEVERITY_COLOURS, SEVERITY_NAMES),
+        ("dNBR minus FESM", class_steps(yours, fesm, classes) + 2, DIFF_COLOURS, DIFF_NAMES),
+    ]
+    # Figure, not pyplot: no GUI or global state, so it also runs headless (CI).
+    fig = Figure(figsize=(15, 8), facecolor=SURFACE)
+    # Margins by hand: room for the title above and the legends below the panels.
+    fig.subplots_adjust(top=0.88, bottom=0.08, left=0.01, right=0.99, wspace=0.04)
+    for ax, (name, values, colours, labels) in zip(fig.subplots(1, 3), panels, strict=True):
+        cmap = ListedColormap(colours).with_extremes(bad=SURFACE)
+        norm = BoundaryNorm(np.arange(-0.5, len(colours)), len(colours))
+        ax.imshow(values, cmap=cmap, norm=norm, extent=extent, interpolation="nearest")
+        # Outline: the edge of the inside mask, drawn as a thin line.
+        ax.contour(inside, levels=[0.5], colors=INK, linewidths=0.8, extent=extent, origin="upper")
+        ax.set_title(name, color=INK)
+        ax.set_axis_off()
+        handles = [Patch(color=c, label=n) for c, n in zip(colours, labels, strict=True)]
+        # One row of 5 under each panel, so no entry is cut off.
+        ax.legend(
+            handles=handles,
+            loc="upper center",
+            bbox_to_anchor=(0.5, 0),
+            ncols=len(handles),
+            frameon=False,
+            labelcolor=INK,
+            fontsize="small",
+            handlelength=1,
+            columnspacing=0.8,
+        )
+    fig.suptitle(title, color=INK, fontsize="large")
+    # bbox_inches="tight": grow the saved image so nothing (e.g. a legend) is cut off.
+    fig.savefig(path, dpi=120, facecolor=SURFACE, bbox_inches="tight")
+
+
 def write(path: Path, array: np.ndarray, profile: dict[str, Any], nodata: float) -> None:
     """Write one band on the same grid as `profile`, with this array's dtype."""
     profile = {**profile, "dtype": array.dtype.name, "nodata": nodata, "count": 1}
@@ -260,6 +333,13 @@ def main() -> None:
     # default=str writes dates as "2023-12-07".
     (out / "metadata.json").write_text(json.dumps(metadata, indent=2, default=str) + "\n")
 
+    title = (
+        f"{config['fire']['name']}: {stats['exact_pct']:.0f}% exact agreement, "
+        f"{stats['within_one_pct']:.0f}% within one class "
+        f"({'QA passed' if passed else 'QA FAILED: unreliable'})"
+    )
+    write_map(out / "map.png", severity_map, fesm, inside, profile, severity["classes"], title)
+
     print(f"dNBR: {valid.size} valid pixels, median {np.median(valid):.2f}")
     print(
         f"Agreement with FESM over {stats['pixels']} pixels: "
@@ -273,7 +353,7 @@ def main() -> None:
         )
     if not passed:
         print("WARNING: a QA check failed; results are marked unreliable in metadata.json")
-    print(f"Wrote dnbr.tif, severity.tif, confusion.csv and metadata.json in {out}")
+    print(f"Wrote dnbr.tif, severity.tif, confusion.csv, metadata.json and map.png in {out}")
 
 
 if __name__ == "__main__":
