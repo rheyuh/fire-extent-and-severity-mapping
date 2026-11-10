@@ -11,20 +11,22 @@ from click.testing import CliRunner
 from fesmqa import cli
 from fesmqa.cli import main
 from fesmqa.config import Config, FireConfig
-from fesmqa.scenes import SceneDate
+from fesmqa.scenes import Bbox, SceneDate
 
 REPO_CONFIG = Path(__file__).parent.parent / "config.yaml"
 
 
 @pytest.fixture(autouse=True)
 def fake_scenes(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Replace scene finding, so CLI tests read no shapefile and make no network calls."""
+    """Replace outline and scene finding: CLI tests read no shapefile and use no network."""
 
-    def find_scenes(config: Config, fire: FireConfig) -> tuple[SceneDate, SceneDate]:
-        pre = SceneDate(day=fire.start_date, cloud=0.0, item_ids=("pre",))
-        post = SceneDate(day=fire.end_date, cloud=0.0, item_ids=("post",))
+    def find_scenes(config: Config, fire: FireConfig, bbox: Bbox) -> tuple[SceneDate, SceneDate]:
+        pre = SceneDate(day=fire.start_date, cloud=0.0, items=())
+        post = SceneDate(day=fire.end_date, cloud=0.0, items=())
         return pre, post
 
+    monkeypatch.setattr(cli, "load_outline", lambda config, fire: None)
+    monkeypatch.setattr(cli, "outline_bbox", lambda outline: (150.0, -30.0, 150.1, -29.9))
     monkeypatch.setattr(cli, "find_scenes", find_scenes)
 
 
@@ -76,7 +78,7 @@ def test_run_unknown_fire_is_usage_error(config_file: Path) -> None:
 
 
 def test_scene_failure_is_reported(config_file: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    def no_scenes(config: Config, fire: FireConfig) -> tuple[SceneDate, SceneDate]:
+    def no_scenes(config: Config, fire: FireConfig, bbox: Bbox) -> tuple[SceneDate, SceneDate]:
         raise ValueError("no pre-fire scenes from 2025-10-02 to 2025-11-30")
 
     monkeypatch.setattr(cli, "find_scenes", no_scenes)

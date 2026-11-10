@@ -13,6 +13,7 @@ from fesmqa.scenes import SceneDate, group_by_date, pick_date
 
 REPO_CONFIG = Path(__file__).parent.parent / "config.yaml"
 CLOUD = "eo:cloud_cover"
+BBOX = (150.0, -30.0, 151.0, -29.0)
 
 
 def make_item(item_id: str, when: datetime, cloud: float | None) -> pystac.Item:
@@ -21,7 +22,8 @@ def make_item(item_id: str, when: datetime, cloud: float | None) -> pystac.Item:
 
 
 def scene(day: str, cloud: float) -> SceneDate:
-    return SceneDate(day=date.fromisoformat(day), cloud=cloud, item_ids=(day,))
+    # pick_date only looks at day and cloud, so no items are needed.
+    return SceneDate(day=date.fromisoformat(day), cloud=cloud, items=())
 
 
 # group_by_date
@@ -33,9 +35,10 @@ def test_one_pass_across_utc_midnight_is_one_date() -> None:
         make_item("zone-56", datetime(2023, 10, 13, 23, 58, tzinfo=UTC), 5.0),
         make_item("zone-55", datetime(2023, 10, 14, 0, 1, tzinfo=UTC), 30.0),
     ]
-    assert group_by_date(items, CLOUD) == [
-        SceneDate(day=date(2023, 10, 14), cloud=30.0, item_ids=("zone-55", "zone-56"))
-    ]
+    [scene_date] = group_by_date(items, CLOUD)
+    assert scene_date.day == date(2023, 10, 14)
+    assert scene_date.cloud == 30.0
+    assert scene_date.item_ids == ("zone-55", "zone-56")
 
 
 def test_dates_are_sorted_oldest_first() -> None:
@@ -107,10 +110,8 @@ def fire() -> FireConfig:
 
 @pytest.fixture
 def fake_search(monkeypatch: pytest.MonkeyPatch) -> list[pystac.Item]:
-    """Replace the outline and STAC search. Tests fill the returned list with items."""
+    """Replace the STAC search. Tests fill the returned list with items."""
     items: list[pystac.Item] = []
-    monkeypatch.setattr(scenes, "load_outline", lambda config, fire: None)
-    monkeypatch.setattr(scenes, "outline_bbox", lambda outline: (150.0, -30.0, 151.0, -29.0))
     monkeypatch.setattr(scenes, "search_items", lambda config, bbox, start, end: items)
     return items
 
@@ -125,7 +126,7 @@ def test_find_scenes_keeps_fire_dates_out_of_windows(
         make_item("end-day", datetime(2023, 11, 8, 0, 0, tzinfo=UTC), 0.0),
         make_item("after", datetime(2023, 11, 12, 0, 0, tzinfo=UTC), 5.0),
     ]
-    pre, post = scenes.find_scenes(config, fire)
+    pre, post = scenes.find_scenes(config, fire, BBOX)
     assert pre.item_ids == ("before",)
     assert post.item_ids == ("after",)
 
@@ -141,7 +142,7 @@ def test_find_scenes_warns_when_no_date_is_clear(
         make_item("after", datetime(2023, 11, 12, 0, 0, tzinfo=UTC), 5.0),
     ]
     with caplog.at_level(logging.WARNING, logger="fesmqa"):
-        pre, _ = scenes.find_scenes(config, fire)
+        pre, _ = scenes.find_scenes(config, fire, BBOX)
     assert pre.item_ids == ("cloudy",)
     assert "no pre-fire date is at or below 20" in caplog.text
 
@@ -151,4 +152,4 @@ def test_find_scenes_empty_window_raises(
 ) -> None:
     fake_search.append(make_item("after", datetime(2023, 11, 12, 0, 0, tzinfo=UTC), 5.0))
     with pytest.raises(ValueError, match="no pre-fire scenes"):
-        scenes.find_scenes(config, fire)
+        scenes.find_scenes(config, fire, BBOX)

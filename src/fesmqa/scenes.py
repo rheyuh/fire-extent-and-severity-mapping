@@ -13,7 +13,6 @@ import pystac
 from pystac_client import Client
 
 from fesmqa.config import Config, FireConfig
-from fesmqa.outlines import load_outline, outline_bbox
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +30,11 @@ class SceneDate:
 
     day: date
     cloud: float  # cloud cover (%) of the cloudiest tile
-    item_ids: tuple[str, ...]  # one per tile, e.g. two where a fire spans UTM zones 55 and 56
+    items: tuple[pystac.Item, ...]  # one per tile, e.g. two where a fire spans UTM zones 55 and 56
+
+    @property
+    def item_ids(self) -> tuple[str, ...]:
+        return tuple(item.id for item in self.items)
 
     def describe(self) -> str:
         return f"{self.day} ({self.cloud:.1f}% cloud, tiles: {', '.join(self.item_ids)})"
@@ -69,7 +72,7 @@ def group_by_date(items: list[pystac.Item], cloud_property: str) -> list[SceneDa
         SceneDate(
             day=day,
             cloud=max(_cloud(item, cloud_property) for item in tiles),
-            item_ids=tuple(sorted(item.id for item in tiles)),
+            items=tuple(sorted(tiles, key=lambda item: item.id)),
         )
         for day, tiles in sorted(by_day.items())
     ]
@@ -120,10 +123,9 @@ def _pick_in_window(
     return scene
 
 
-def find_scenes(config: Config, fire: FireConfig) -> tuple[SceneDate, SceneDate]:
-    """The pre-fire and post-fire scene dates for a fire."""
+def find_scenes(config: Config, fire: FireConfig, bbox: Bbox) -> tuple[SceneDate, SceneDate]:
+    """The pre-fire and post-fire scene dates for a fire whose outline has this lon/lat box."""
     pre_days, post_days = config.search_windows(fire)
-    bbox = outline_bbox(load_outline(config, fire))
     one_day = timedelta(days=1)
     pre = _pick_in_window(
         config,
