@@ -102,6 +102,36 @@ def test_run_logs_masked_share_per_scene(
     assert "Post-fire 2025-12-20: 50.0% of pixels masked" in caplog.text
 
 
+@pytest.fixture
+def written(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
+    """Replace the PNG writer; tests read the paths it was asked to write."""
+    paths: list[Path] = []
+
+    def fake_write(
+        panels: Any, outline: Any, grid: Any, config: Any, title: str, path: Path
+    ) -> Path:
+        paths.append(path)
+        return path
+
+    monkeypatch.setattr(cli, "write_quicklook", fake_write)
+    return paths
+
+
+def test_quicklook_default_path(config_file: Path, written: list[Path]) -> None:
+    args = ["--config", str(config_file), "quicklook", "--fire", "test-fire"]
+    result = CliRunner().invoke(main, args)
+    assert result.exit_code == 0
+    assert written == [Path("outputs") / "test-fire" / "quicklook.png"]
+
+
+def test_quicklook_out_option(config_file: Path, written: list[Path], tmp_path: Path) -> None:
+    out = tmp_path / "look.png"
+    args = ["--config", str(config_file), "quicklook", "--fire", "test-fire", "--out", str(out)]
+    result = CliRunner().invoke(main, args)
+    assert result.exit_code == 0
+    assert written == [out]
+
+
 def test_scene_failure_is_reported(config_file: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def no_scenes(config: Config, fire: FireConfig, area: Any) -> tuple[SceneDate, SceneDate]:
         raise ValueError("no pre-fire scenes from 2025-10-02 to 2025-11-30")
