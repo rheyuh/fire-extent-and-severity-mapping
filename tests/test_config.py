@@ -64,6 +64,12 @@ def test_max_scene_cloud_out_of_range(data: dict[str, Any]) -> None:
         Config.model_validate(data)
 
 
+def test_min_scene_coverage_out_of_range(data: dict[str, Any]) -> None:
+    data["stac"]["min_scene_coverage"] = 101
+    with pytest.raises(ValidationError, match="min_scene_coverage"):
+        Config.model_validate(data)
+
+
 def test_unknown_resampling_rejected(data: dict[str, Any]) -> None:
     data["grid"]["resampling"] = "bilinaer"
     with pytest.raises(ValidationError, match="resampling"):

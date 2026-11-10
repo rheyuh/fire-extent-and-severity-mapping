@@ -3,6 +3,7 @@ stac:                                   # verified in 1.1 (docs/data-sources.md)
   collections: [ga_s2am_ard_3, ga_s2bm_ard_3, ga_s2cm_ard_3]
   cloud_cover_property: eo:cloud_cover
   max_scene_cloud: 20                   # %; a date is clear enough if its cloudiest tile is at or below this (2.1)
+  min_scene_coverage: 99                # %; tiles must cover this much of the outline (edge slivers fail)
 
 bands:                                  # verified in 1.1
   nir: nbart_nir_2                      # B8A, 864.7 nm

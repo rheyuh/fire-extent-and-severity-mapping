@@ -23,6 +23,8 @@ class StacConfig(_Section):
     cloud_cover_property: str
     # A date is clear enough if its cloudiest tile's cloud cover (%) is at or below this.
     max_scene_cloud: float = Field(ge=0, le=100)
+    # A date counts only if its tiles' footprints cover at least this much (%) of the outline.
+    min_scene_coverage: float = Field(ge=0, le=100)
 
 
 class BandsConfig(_Section):
