@@ -47,3 +47,5 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# run.py is a script in the project root, not an installed package: let tests import it.
+pythonpath = ["."]
