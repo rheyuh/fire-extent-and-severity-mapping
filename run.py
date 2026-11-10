@@ -4,6 +4,7 @@ Run: uv run python run.py --config config.yaml
 """
 
 import argparse
+import csv
 import os
 import subprocess
 from pathlib import Path
@@ -79,6 +80,46 @@ def classify(dnbr: np.ndarray, thresholds: list[float], classes: list[int]) -> n
     return np.where(np.isnan(dnbr), SEVERITY_NODATA, severity).astype("uint8")
 
 
+def confusion(yours: np.ndarray, fesm: np.ndarray, classes: list[int]) -> np.ndarray:
+    """Pixel counts: rows are your class, columns FESM's, both in `classes` order.
+
+    Only pixels where both maps hold one of `classes` are counted, so nodata (255) and FESM's
+    grassland class (1, no severity order) drop out.
+    """
+    keep = np.isin(yours, classes) & np.isin(fesm, classes)
+    # Class code to row/column number, e.g. [0, 2, 3, 4, 5] -> 0..4 (classes are in order).
+    row = np.searchsorted(classes, yours[keep])
+    col = np.searchsorted(classes, fesm[keep])
+    n = len(classes)
+    # Count each (row, col) pair: pair k = row * n + col, then fold back into n x n.
+    counts: np.ndarray = np.bincount(row * n + col, minlength=n * n).reshape(n, n)
+    return counts
+
+
+def agreement(matrix: np.ndarray) -> dict[str, float]:
+    """Summary of a confusion matrix, in % of compared pixels."""
+    total = int(matrix.sum())
+    if total == 0:
+        raise ValueError("no pixels to compare: check the outline, masks and FESM clip")
+    row, col = np.indices(matrix.shape)  # row = your class, col = FESM's
+    return {
+        "pixels": total,
+        "exact_pct": 100 * float(np.trace(matrix)) / total,
+        "within_one_pct": 100 * float(matrix[abs(row - col) <= 1].sum()) / total,
+        "lower_than_fesm_pct": 100 * float(matrix[row < col].sum()) / total,
+        "higher_than_fesm_pct": 100 * float(matrix[row > col].sum()) / total,
+    }
+
+
+def write_confusion(path: Path, matrix: np.ndarray, classes: list[int]) -> None:
+    """CSV with one row per your class and one column per FESM class."""
+    with path.open("w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["yours \\ fesm", *classes])
+        for code, counts in zip(classes, matrix, strict=True):
+            writer.writerow([code, *counts.tolist()])
+
+
 def write(path: Path, array: np.ndarray, profile: dict[str, Any], nodata: float) -> None:
     """Write one band on the same grid as `profile`, with this array's dtype."""
     profile = {**profile, "dtype": array.dtype.name, "nodata": nodata, "count": 1}
@@ -102,12 +143,23 @@ def main() -> None:
     write(out / "dnbr.tif", dnbr.astype("float32"), profile, nodata=np.nan)
 
     severity = config["severity"]
-    classes = classify(dnbr, severity["thresholds"], severity["classes"])
-    write(out / "severity.tif", classes, profile, nodata=SEVERITY_NODATA)
+    severity_map = classify(dnbr, severity["thresholds"], severity["classes"])
+    write(out / "severity.tif", severity_map, profile, nodata=SEVERITY_NODATA)
+
+    fesm, _ = read(work / "fesm.tif")
+    matrix = confusion(severity_map, fesm, severity["classes"])
+    write_confusion(out / "confusion.csv", matrix, severity["classes"])
+    stats = agreement(matrix)
 
     valid = dnbr[~np.isnan(dnbr)]
     print(f"dNBR: {valid.size} valid pixels, median {np.median(valid):.2f}")
-    print(f"Wrote {out / 'dnbr.tif'} and {out / 'severity.tif'}")
+    print(
+        f"Agreement with FESM over {stats['pixels']} pixels: "
+        f"{stats['exact_pct']:.1f}% exact, {stats['within_one_pct']:.1f}% within one class; "
+        f"lower than FESM {stats['lower_than_fesm_pct']:.1f}%, "
+        f"higher {stats['higher_than_fesm_pct']:.1f}%"
+    )
+    print(f"Wrote dnbr.tif, severity.tif and confusion.csv in {out}")
 
 
 if __name__ == "__main__":
