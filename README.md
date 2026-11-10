@@ -4,7 +4,7 @@ An independent QA check of NSW Fire Extent and Severity Mapping (FESM) for one f
 
 **Result for Guy Fawkes NP (Dec 2023):** dNBR and FESM agree on *where* the fire burned and on the *order* of severity, but standard dNBR thresholds put the severity **one to two classes lower** than FESM almost everywhere: 15% exact agreement, 61% within one class, dNBR lower on 85% of pixels. All six QA gates passed.
 
-![dNBR classes, FESM classes, and the difference between them for Guy Fawkes NP](docs/map.png)
+![Bar chart: share of the fire in each severity level. My map puts most of it in Low or Moderate; FESM puts most in High or Extreme](docs/summary.png)
 
 ## How it works
 
@@ -72,6 +72,12 @@ The fire burned 9–24 Dec 2023, so the scenes are 2 days before and 3 days afte
 
 ## Results
 
+### Where the maps differ
+
+![dNBR classes, FESM classes, and the difference between them for Guy Fawkes NP](docs/map.png)
+
+Left: severity from dNBR. Middle: severity from FESM. In both, lighter blue is less severe and darker blue more severe. Right: the difference, where grey means both maps give the same level, blue means dNBR is one (light) or two or more (dark) levels lower, and red means dNBR is higher. The unburnt patches sit in the same places in both maps; elsewhere dNBR is lower almost everywhere, most of all where FESM says Extreme.
+
 ### QA gates
 
 | Check | Value | Limit | Result |
@@ -107,23 +113,6 @@ Median dNBR rises with each FESM class, so the two methods rank severity the sam
 The values are lower than the thresholds expect because the pre-fire NBR was low (median 0.25; dense, moist forest is typically 0.5 or more). This was dry, open country in early summer, so a severe burn produced a smaller drop in NBR. Key & Benson's thresholds were developed for US forests on Landsat, and here they place most of FESM's high and extreme pixels in low or moderate.
 
 The thresholds were kept as published rather than tuned to FESM: fitting them on the same fire would raise agreement while testing on the data used to fit them. Midpoints between the class medians above (about 0.09, 0.20, 0.26, 0.30) show the scale of the shift, but would need testing on other fires before use.
-
-## Design decisions
-
-- **One grid in FESM's CRS (EPSG:3308) at 20 m**: 20 m is native for B8A and B12, so the reflectance bands are only reprojected, not upsampled. FESM (~10 m) is aggregated with `mode`, which keeps its class shares within 0.5 points of the ~10 m figures.
-- **`-tap` on every `gdalwarp`**: pixel edges snap to multiples of 20 m, so all rasters share identical pixels without passing an extent between commands. A QA gate confirms it.
-- **`-ovr NONE` on every `gdalwarp`**: without it, GDAL can read FESM's pre-built overviews when downsampling, skipping the chosen resampling.
-- **Scenes picked by hand, links in config**: a single fire doesn't need search code, and the choice (closest cloud-free date that covers the whole outline) is recorded in `docs/data-sources.md`.
-- **FESM class 1 (burnt grassland) left out**: it marks extent without a severity level, so it has no place on the dNBR scale. For this fire it covers 0 pixels; the count is recorded in `metadata.json`.
-- **Scene gap must be 1–14 days**: a gap of 0 or less means the scene was taken during the fire, and a long gap lets regrowth or seasonal change look like severity.
-
-## Limitations
-
-- **One fire.** The result describes Guy Fawkes NP; other vegetation types and seasons may behave differently.
-- **Uncalibrated thresholds.** Key & Benson thresholds are not tuned for NSW vegetation or Sentinel-2, which is the main cause of the disagreement found here.
-- **FESM is a model, not ground truth.** Disagreement shows where two methods differ, not which one is right; field plots would be needed for that.
-- **NPWS outline precision.** The outline is stated to 50 m, so edge pixels may sit just outside the true burnt area.
-- **No topographic correction beyond DEA's NBART.** Steep gorge slopes can still affect reflectance.
 
 ## Data licences and attribution
 
