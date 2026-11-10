@@ -1,0 +1,52 @@
+# One fire: Guy Fawkes NP, 2023/24 (docs/data-sources.md 1.4 and 2.1)
+fire:
+  id: guy-fawkes-np
+  name: Guy Fawkes NP
+  npws_fire_no: "23120927869"
+  start_date: 2023-12-09
+  end_date: 2023-12-24
+
+inputs:
+  outline: data/npws/2026-11-09/NPWSFireHistory.shp   # NPWS snapshot of 2026-11-09
+  outline_layer: NPWSFireHistory
+  fire_no_field: FireNo
+  fesm: data/fesm/2023-24/FESM2324.tif
+
+# Picked by hand from DEA's STAC (2026-11-10). GDAL reads /vsis3/ with AWS_NO_SIGN_REQUEST=YES.
+scenes:
+  pre:
+    date: 2023-12-07                                  # NSW date (UTC 2023-12-06 23:55)
+    stac_id: 2a081f23-d9f4-4933-bc35-59374aaa5802
+    nir: /vsis3/dea-public-data/baseline/ga_s2am_ard_3/56/JMM/2023/12/06/20231207T004722/ga_s2am_nbart_3-2-1_56JMM_2023-12-06_final_band08a.tif
+    swir2: /vsis3/dea-public-data/baseline/ga_s2am_ard_3/56/JMM/2023/12/06/20231207T004722/ga_s2am_nbart_3-2-1_56JMM_2023-12-06_final_band12.tif
+    fmask: /vsis3/dea-public-data/baseline/ga_s2am_ard_3/56/JMM/2023/12/06/20231207T004722/ga_s2am_oa_3-2-1_56JMM_2023-12-06_final_fmask.tif
+  post:
+    date: 2023-12-27                                  # NSW date (UTC 2023-12-26 23:55)
+    stac_id: 891774c8-7a69-4cad-920d-ebc63f420a50
+    nir: /vsis3/dea-public-data/baseline/ga_s2am_ard_3/56/JMM/2023/12/26/20231227T004919/ga_s2am_nbart_3-2-1_56JMM_2023-12-26_final_band08a.tif
+    swir2: /vsis3/dea-public-data/baseline/ga_s2am_ard_3/56/JMM/2023/12/26/20231227T004919/ga_s2am_nbart_3-2-1_56JMM_2023-12-26_final_band12.tif
+    fmask: /vsis3/dea-public-data/baseline/ga_s2am_ard_3/56/JMM/2023/12/26/20231227T004919/ga_s2am_oa_3-2-1_56JMM_2023-12-26_final_fmask.tif
+
+grid:
+  crs: EPSG:3308          # FESM's CRS, GDA94 / NSW Lambert
+  resolution: 20          # metres; native for B8A and B12
+
+bands:
+  nodata: -999            # nbart_* nodata
+  fmask_clear: [1]        # keep only fmask 1 (clear)
+
+fesm:
+  nodata: 255
+  not_comparable: [1]     # burnt grassland: no severity order
+
+severity:                 # dNBR breaks (Key & Benson) -> FESM classes
+  thresholds: [0.10, 0.27, 0.44, 0.66]
+  classes: [0, 2, 3, 4, 5]   # one more class than thresholds
+
+qa:
+  max_masked_pct: 10      # cloud/shadow/nodata inside the outline, per date
+  max_gap_days: 14        # scene date to fire start/end
+  max_fesm_nodata_pct: 5
+
+outputs:
+  root: outputs
