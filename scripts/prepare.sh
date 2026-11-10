@@ -43,6 +43,11 @@ warp "${POST_SWIR2:?}" post_swir2.tif bilinear -999
 warp "${POST_FMASK:?}" post_fmask.tif near     0
 warp "${FESM:?}"       fesm.tif       mode     255
 
+# Outline mask on the same grid: 1 inside the fire, 0 outside. Lets the QA checks tell
+# "outside the outline" apart from "inside, but masked by cloud".
+gdal_create --quiet -if "$out/pre_nir.tif" -ot Byte -burn 0 -a_nodata 255 "$out/outline.tif"
+gdal_rasterize -q -burn 1 "$outline" "$out/outline.tif"
+
 # One line per output: if the grids line up, every size and origin is identical.
 for f in "$out"/*.tif; do
   printf '%-16s ' "$(basename "$f")"
