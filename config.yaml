@@ -14,6 +14,7 @@ bands:                                  # verified in 1.1
 grid:
   resolution: 20                        # metres; native for B8A and B12
   crs: EPSG:3308                        # verified in 1.2: FESM's CRS, GDA94 / NSW Lambert
+  resampling: bilinear                  # NIR and SWIR2 (2.2); fmask is always nearest, in code
 
 dates:                                  # checked in 1.4: clear scenes found for every chosen fire
   pre_fire_days: 60                     # search window before the fire starts

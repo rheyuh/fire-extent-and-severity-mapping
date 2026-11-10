@@ -3,7 +3,7 @@
 from datetime import date
 from itertools import pairwise
 from pathlib import Path
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
@@ -36,6 +36,8 @@ class BandsConfig(_Section):
 class GridConfig(_Section):
     resolution: float = Field(gt=0)
     crs: str | None = None
+    # For NIR and SWIR2 (2.2). fmask always uses nearest: averaging class codes invents classes.
+    resampling: Literal["nearest", "bilinear", "cubic", "average"]
 
 
 class DatesConfig(_Section):
