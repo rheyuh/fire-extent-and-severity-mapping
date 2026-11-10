@@ -108,23 +108,6 @@ The values are lower than the thresholds expect because the pre-fire NBR was low
 
 The thresholds were kept as published rather than tuned to FESM: fitting them on the same fire would raise agreement while testing on the data used to fit them. Midpoints between the class medians above (about 0.09, 0.20, 0.26, 0.30) show the scale of the shift, but would need testing on other fires before use.
 
-## Design decisions
-
-- **One grid in FESM's CRS (EPSG:3308) at 20 m**: 20 m is native for B8A and B12, so the reflectance bands are only reprojected, not upsampled. FESM (~10 m) is aggregated with `mode`, which keeps its class shares within 0.5 points of the ~10 m figures.
-- **`-tap` on every `gdalwarp`**: pixel edges snap to multiples of 20 m, so all rasters share identical pixels without passing an extent between commands. A QA gate confirms it.
-- **`-ovr NONE` on every `gdalwarp`**: without it, GDAL can read FESM's pre-built overviews when downsampling, skipping the chosen resampling.
-- **Scenes picked by hand, links in config**: a single fire doesn't need search code, and the choice (closest cloud-free date that covers the whole outline) is recorded in `docs/data-sources.md`.
-- **FESM class 1 (burnt grassland) left out**: it marks extent without a severity level, so it has no place on the dNBR scale. For this fire it covers 0 pixels; the count is recorded in `metadata.json`.
-- **Scene gap must be 1–14 days**: a gap of 0 or less means the scene was taken during the fire, and a long gap lets regrowth or seasonal change look like severity.
-
-## Limitations
-
-- **One fire.** The result describes Guy Fawkes NP; other vegetation types and seasons may behave differently.
-- **Uncalibrated thresholds.** Key & Benson thresholds are not tuned for NSW vegetation or Sentinel-2, which is the main cause of the disagreement found here.
-- **FESM is a model, not ground truth.** Disagreement shows where two methods differ, not which one is right; field plots would be needed for that.
-- **NPWS outline precision.** The outline is stated to 50 m, so edge pixels may sit just outside the true burnt area.
-- **No topographic correction beyond DEA's NBART.** Steep gorge slopes can still affect reflectance.
-
 ## Data licences and attribution
 
 All inputs are CC BY 4.0.
