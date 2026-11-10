@@ -99,7 +99,9 @@ def test_load_scene_uses_nearest_for_fmask(config: Config, monkeypatch: pytest.M
 
     monkeypatch.setattr(odc.stac, "load", fake_load)
     grid = fire_grid(BBOX, config)
-    ds = load_scene(SceneDate(day=date(2023, 9, 16), cloud=0.0, items=()), grid, config)
+    ds = load_scene(
+        SceneDate(day=date(2023, 9, 16), cloud=0.0, coverage=100.0, items=()), grid, config
+    )
 
     [kwargs] = calls
     assert kwargs["resampling"] == {"*": "bilinear", FMASK: "nearest"}
