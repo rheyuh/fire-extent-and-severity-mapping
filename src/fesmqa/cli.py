@@ -6,9 +6,10 @@ from pathlib import Path
 import click
 import yaml
 
+from fesmqa.bands import fire_grid, load_scene, mask_scene, masked_fraction
 from fesmqa.config import Config, load_config
 from fesmqa.logs import setup_logging
-from fesmqa.outlines import load_outline, outline_area
+from fesmqa.outlines import load_outline, outline_area, outline_bbox
 from fesmqa.scenes import find_scenes
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,15 @@ def run(config_path: Path, fire_id: str) -> None:
     try:
         outline = load_outline(config, fire)
         pre, post = find_scenes(config, fire, outline_area(outline))
+        grid = fire_grid(outline_bbox(outline), config)  # one grid, shared by both scenes
+        for label, scene in (("Pre-fire", pre), ("Post-fire", post)):
+            masked = mask_scene(load_scene(scene, grid, config), config)
+            logger.info(
+                "%s %s: %.1f%% of pixels masked",
+                label,
+                scene.day,
+                100 * masked_fraction(masked, config),
+            )
     except (FileNotFoundError, ValueError) as e:  # missing outline file, no outline, no scenes
         raise click.ClickException(str(e)) from e
     logger.info("Scenes for %s (%s): pre %s, post %s", fire.id, fire.name, pre.day, post.day)

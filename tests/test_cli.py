@@ -4,7 +4,9 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pytest
+import xarray as xr
 import yaml
 from click.testing import CliRunner
 
@@ -14,6 +16,15 @@ from fesmqa.config import Config, FireConfig
 from fesmqa.scenes import SceneDate
 
 REPO_CONFIG = Path(__file__).parent.parent / "config.yaml"
+
+# A loaded scene with one clear pixel (fmask 1) and one cloudy pixel (fmask 2): 50% masked.
+HALF_CLOUDY = xr.Dataset(
+    {
+        "nbart_nir_2": (("y", "x"), np.array([[900, 900]], dtype="int16")),
+        "nbart_swir_3": (("y", "x"), np.array([[500, 500]], dtype="int16")),
+        "oa_fmask": (("y", "x"), np.array([[1, 2]], dtype="uint8")),
+    }
+)
 
 
 @pytest.fixture(autouse=True)
@@ -27,6 +38,8 @@ def fake_scenes(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(cli, "load_outline", lambda config, fire: None)
     monkeypatch.setattr(cli, "outline_area", lambda outline: None)
+    monkeypatch.setattr(cli, "outline_bbox", lambda outline: (149.9, -36.6, 150.1, -36.4))
+    monkeypatch.setattr(cli, "load_scene", lambda scene, grid, config: HALF_CLOUDY)
     monkeypatch.setattr(cli, "find_scenes", find_scenes)
 
 
@@ -75,6 +88,18 @@ def test_run_unknown_fire_is_usage_error(config_file: Path) -> None:
     result = CliRunner().invoke(main, ["--config", str(config_file), "run", "--fire", "nope"])
     assert result.exit_code == 2
     assert "fires in config: test-fire" in result.output
+
+
+def test_run_logs_masked_share_per_scene(
+    config_file: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.INFO, logger="fesmqa"):
+        result = CliRunner().invoke(
+            main, ["--config", str(config_file), "run", "--fire", "test-fire"]
+        )
+    assert result.exit_code == 0
+    assert "Pre-fire 2025-12-01: 50.0% of pixels masked" in caplog.text
+    assert "Post-fire 2025-12-20: 50.0% of pixels masked" in caplog.text
 
 
 def test_scene_failure_is_reported(config_file: Path, monkeypatch: pytest.MonkeyPatch) -> None:
