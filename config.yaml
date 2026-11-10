@@ -1,57 +1,52 @@
-stac:                                   # verified in 1.1 (docs/data-sources.md)
-  endpoint: https://explorer.dea.ga.gov.au/stac
-  collections: [ga_s2am_ard_3, ga_s2bm_ard_3, ga_s2cm_ard_3]
-  cloud_cover_property: eo:cloud_cover
+# One fire: Guy Fawkes NP, 2023/24 (docs/data-sources.md 1.4 and 2.1)
+fire:
+  id: guy-fawkes-np
+  name: Guy Fawkes NP
+  npws_fire_no: "23120927869"
+  start_date: 2023-12-09
+  end_date: 2023-12-24
 
-bands:                                  # verified in 1.1
-  nir: nbart_nir_2                      # B8A, 864.7 nm
-  swir2: nbart_swir_3                   # B12, 2202.4 nm (not nbart_swir_2, which is B11)
-  fmask: oa_fmask
-  nodata: -999
-  fmask_keep: [1]                       # 1 = clear; 0 null, 2 cloud, 3 shadow, 4 snow, 5 water are dropped
+inputs:
+  outline: data/npws/2026-11-09/NPWSFireHistory.shp   # NPWS snapshot of 2026-11-09
+  outline_layer: NPWSFireHistory
+  fire_no_field: FireNo
+  fesm: data/fesm/2023-24/FESM2324.tif
+
+# Picked by hand from DEA's STAC (2026-11-10). GDAL reads /vsis3/ with AWS_NO_SIGN_REQUEST=YES.
+scenes:
+  pre:
+    date: 2023-12-07                                  # NSW date (UTC 2023-12-06 23:55)
+    stac_id: 2a081f23-d9f4-4933-bc35-59374aaa5802
+    nir: /vsis3/dea-public-data/baseline/ga_s2am_ard_3/56/JMM/2023/12/06/20231207T004722/ga_s2am_nbart_3-2-1_56JMM_2023-12-06_final_band08a.tif
+    swir2: /vsis3/dea-public-data/baseline/ga_s2am_ard_3/56/JMM/2023/12/06/20231207T004722/ga_s2am_nbart_3-2-1_56JMM_2023-12-06_final_band12.tif
+    fmask: /vsis3/dea-public-data/baseline/ga_s2am_ard_3/56/JMM/2023/12/06/20231207T004722/ga_s2am_oa_3-2-1_56JMM_2023-12-06_final_fmask.tif
+  post:
+    date: 2023-12-27                                  # NSW date (UTC 2023-12-26 23:55)
+    stac_id: 891774c8-7a69-4cad-920d-ebc63f420a50
+    nir: /vsis3/dea-public-data/baseline/ga_s2am_ard_3/56/JMM/2023/12/26/20231227T004919/ga_s2am_nbart_3-2-1_56JMM_2023-12-26_final_band08a.tif
+    swir2: /vsis3/dea-public-data/baseline/ga_s2am_ard_3/56/JMM/2023/12/26/20231227T004919/ga_s2am_nbart_3-2-1_56JMM_2023-12-26_final_band12.tif
+    fmask: /vsis3/dea-public-data/baseline/ga_s2am_ard_3/56/JMM/2023/12/26/20231227T004919/ga_s2am_oa_3-2-1_56JMM_2023-12-26_final_fmask.tif
 
 grid:
-  resolution: 20                        # metres; native for B8A and B12
-  crs: EPSG:3308                        # verified in 1.2: FESM's CRS, GDA94 / NSW Lambert
+  crs: EPSG:3308          # FESM's CRS, GDA94 / NSW Lambert
+  resolution: 20          # metres; native for B8A and B12
 
-dates:                                  # checked in 1.4: clear scenes found for every chosen fire
-  pre_fire_days: 60                     # search window before the fire starts
-  post_fire_days: 60                    # search window after the fire ends
+bands:
+  nodata: -999            # nbart_* nodata
+  fmask_clear: [1]        # keep only fmask 1 (clear)
 
-severity:                               # PLACEHOLDER: decided in 2.3 after reading FESM (1.2)
-  thresholds: [0.10, 0.27, 0.44, 0.66]  # Key & Benson dNBR breaks, illustrative only
-  classes: {}                           # severity class name -> FESM class code, from 1.2
+fesm:
+  nodata: 255
+  not_comparable: [1]     # burnt grassland: no severity order
 
-qa: {}                                  # PLACEHOLDER: gate limits decided in 3.1
+severity:                 # dNBR breaks (Key & Benson) -> FESM classes
+  thresholds: [0.10, 0.27, 0.44, 0.66]
+  classes: [0, 2, 3, 4, 5]   # one more class than thresholds
+
+qa:
+  max_masked_pct: 10      # cloud/shadow/nodata inside the outline, per date
+  max_gap_days: 14        # scene date to fire start/end
+  max_fesm_nodata_pct: 5
 
 outputs:
   root: outputs
-
-# Chosen in 1.4 (docs/data-sources.md). Dates and FireNo from the NPWS snapshot of 2026-11-09.
-# A fire may override the default windows with its own pre_fire_days / post_fire_days.
-fires:
-  - id: willi-willi-rd
-    name: Willi Willi Rd, Moparrabah
-    npws_fire_no: "23101419923"
-    start_date: 2023-10-14
-    end_date: 2023-11-08
-  - id: guy-fawkes-np
-    name: Guy Fawkes NP
-    npws_fire_no: "23120927869"
-    start_date: 2023-12-09
-    end_date: 2023-12-24
-  - id: hudson
-    name: Hudson Fire
-    npws_fire_no: "23111224029"
-    start_date: 2023-11-12
-    end_date: 2023-11-25
-  - id: dthinna-dthinnawan
-    name: Dthinna Dthinnawan
-    npws_fire_no: "23120927782"
-    start_date: 2023-12-09
-    end_date: 2023-12-22
-  - id: coolagolite
-    name: Coolagolite
-    npws_fire_no: "23100318556"
-    start_date: 2023-10-03
-    end_date: 2023-11-16

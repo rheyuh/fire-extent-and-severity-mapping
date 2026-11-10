@@ -440,7 +440,7 @@ Best dates by cloud (whole-tile `eo:cloud_cover`); the gap is the number of days
 Findings:
 - Every fire has a clear pre-fire date; most have a 0% date within days of the fire.
 - **Coolagolite spans UTM zones 55 and 56** (tiles 55HGV and 56HKE), confirming the centroid check in pass 1.
-- **Gaps matter as well as cloud:** Dthinna Dthinnawan's clear scenes are 4–5 weeks either side of the fire, in the growing season, so regrowth or seasonal change could be counted as severity. Whether 2.1 should rank by cloud alone or by cloud and closeness is open.
+- **Gaps matter as well as cloud:** Dthinna Dthinnawan's clear scenes are 4–5 weeks either side of the fire, in the growing season, so regrowth or seasonal change could be counted as severity. Whether 2.1 should rank by cloud alone or by cloud and closeness was open (decided in 2.1, see "Checked in 2.1" below).
 - Cloud is whole-tile, not within the fire; the within-fire cloud gate (3.1) gives the real figure. The ranking is by cloud only, so a slightly cloudier date closer to the fire may exist beyond the three shown.
 - DEA's STAC only advertises GET for searches; pystac-client warned and fell back to GET. 2.1 should pass `method="GET"`.
 
@@ -450,3 +450,22 @@ Docs:
 - [ogr2ogr](https://gdal.org/en/stable/programs/ogr2ogr.html)
 - [GDAL virtual file systems (`/vsistdout/`)](https://gdal.org/en/stable/user/virtual_file_systems.html#vsistdout-standard-output-streaming)
 - [GDAL: SQLite SQL dialect](https://gdal.org/en/stable/user/sql_sqlite_dialect.html)
+
+### Checked in 2.1: chosen scenes
+
+2.1 (#8) picks scenes in two steps. First it keeps only dates whose tiles' footprints (STAC `geometry`) cover at least `stac.min_scene_coverage` (99%) of the fire outline. Of those, it takes the date closest to the fire whose cloudiest tile is at or below `stac.max_scene_cloud` (20%), falling back to the least cloudy date with a warning. Dates are grouped in NSW time (UTC+10), because Sentinel-2 passes over NSW close to midnight UTC. Run 2026-11-10 with `uv run fesmqa run --fire <id>`:
+
+| Fire | Pre-fire | Post-fire | Dates covering the outline (pre / post) |
+|---|---|---|---|
+| Willi Willi Rd | 2023-10-13, 0.0%, 1-day gap | 2023-11-12, 0.0%, 4-day gap | 12 of 24 / 12 of 22 |
+| Guy Fawkes NP | 2023-12-07, 0.1%, 2-day gap | 2023-12-27, 0.0%, 3-day gap | 21 of 21 / 24 of 24 |
+| Hudson Fire | 2023-11-11, 0.0%, 1-day gap | 2023-11-26, 18.0%, 1-day gap | 24 of 24 / 24 of 24 |
+| Dthinna Dthinnawan | 2023-11-10, 6.8%, 29-day gap | 2023-12-25, 10.9%, 3-day gap | 10 of 22 / 12 of 24 |
+| Coolagolite | 2023-09-16, 0.0%, 17-day gap, 2 tiles | 2023-12-30, 14.3%, 44-day gap, 2 tiles | 12 of 24 / 10 of 22 |
+
+Findings:
+- **Swath-edge slivers:** a STAC bbox search returns every tile whose footprint touches the box, including tiles at the edge of the satellite's swath that hold only a thin strip of image. `eo:cloud_cover` is measured over that strip only, so a near-empty tile can report almost no cloud. A first version of 2.1 (cloud and closeness only) picked such tiles for Dthinna Dthinnawan (both scenes) and Coolagolite (post-fire): their footprints covered 0% of the fire, and loading them in 2.2 gave fmask 0 (null) for every pixel. The coverage step was added to fix this.
+- Fires near a swath edge (Willi Willi Rd, Dthinna Dthinnawan, Coolagolite) lose about half their dates to the coverage step; fires in mid-swath (Guy Fawkes NP, Hudson Fire) lose none.
+- Pass 3 ranked by `eo:cloud_cover` alone and so shares the same blind spot; its "best" dates for these three fires should not be relied on.
+- Coolagolite's post-fire scene is 44 days after the fire and, once loaded on the fire's grid in 2.2, 51% of its pixels are masked (cloud over the fire, though the whole tile reports 14.3%). It is the weakest case of the five.
+- Pixel check in 2.2 for the three changed scenes: no null (fmask 0) pixels; masked 0.3% (Willi Willi Rd post), 0.1% (Dthinna Dthinnawan pre), 51.0% (Coolagolite post).

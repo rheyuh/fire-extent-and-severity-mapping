@@ -10,17 +10,11 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "click>=8.5.1",
-    "pydantic>=2.14.3",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.4",
     "pyyaml>=6.0.3",
+    "rasterio>=1.5.2",
 ]
-
-[project.scripts]
-fesmqa = "fesmqa.cli:main"
-
-[build-system]
-requires = ["uv_build>=0.13.7,<0.14.0"]
-build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
@@ -33,6 +27,8 @@ dev = [
 [tool.uv]
 # The same uv everywhere (laptop, CI, Docker): uv refuses to run outside this range.
 required-version = ">=0.13.7,<0.14"
+# A plain project with a script (run.py), not an installable package.
+package = false
 
 [tool.ruff]
 line-length = 100
@@ -44,5 +40,12 @@ select = ["E", "W", "F", "I", "B", "UP"]
 [tool.mypy]
 strict = true
 
+[[tool.mypy.overrides]]
+# rasterio ships no type hints (no py.typed), so mypy treats its objects as Any.
+module = ["rasterio.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# run.py is a script in the project root, not an installed package: let tests import it.
+pythonpath = ["."]
