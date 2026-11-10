@@ -5,8 +5,13 @@ Run: uv run python run.py --config config.yaml
 
 import argparse
 import csv
+import hashlib
+import json
 import os
+import platform
 import subprocess
+from datetime import UTC, datetime
+from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
@@ -120,6 +125,73 @@ def write_confusion(path: Path, matrix: np.ndarray, classes: list[int]) -> None:
             writer.writerow([code, *counts.tolist()])
 
 
+def masked_pct(nbr_map: np.ndarray, inside: np.ndarray) -> float:
+    """% of pixels inside the outline with no NBR (cloud, shadow, water or nodata)."""
+    return 100 * float(np.isnan(nbr_map[inside]).mean())
+
+
+def at_most(value: float, limit: float) -> dict[str, Any]:
+    return {"value": round(value, 2), "limit": limit, "passed": value <= limit}
+
+
+def gap(days: int, limit: int) -> dict[str, Any]:
+    """A scene must fall outside the fire (at least 1 day) and within `limit` days of it."""
+    return {"value": days, "limit": limit, "passed": 1 <= days <= limit}
+
+
+def qa_checks(
+    config: dict[str, Any],
+    work: Path,
+    pre: np.ndarray,
+    post: np.ndarray,
+    fesm: np.ndarray,
+    inside: np.ndarray,
+) -> dict[str, dict[str, Any]]:
+    """Each check: its value, its limit from config.qa, and whether it passed."""
+    qa, fire, scenes = config["qa"], config["fire"], config["scenes"]
+    # Every grid prepare.sh wrote must share CRS, pixel edges and size, or pixels don't match.
+    grids = set()
+    for path in sorted(work.glob("*.tif")):
+        _, p = read(path)
+        grids.add((str(p["crs"]), tuple(p["transform"]), p["width"], p["height"]))
+    fesm_nodata = 100 * float((fesm[inside] == config["fesm"]["nodata"]).mean())
+    return {
+        "pre_masked_pct": at_most(masked_pct(pre, inside), qa["max_masked_pct"]),
+        "post_masked_pct": at_most(masked_pct(post, inside), qa["max_masked_pct"]),
+        "pre_gap_days": gap((fire["start_date"] - scenes["pre"]["date"]).days, qa["max_gap_days"]),
+        "post_gap_days": gap((scenes["post"]["date"] - fire["end_date"]).days, qa["max_gap_days"]),
+        "fesm_nodata_pct": at_most(fesm_nodata, qa["max_fesm_nodata_pct"]),
+        "grids_aligned": {"value": len(grids), "limit": 1, "passed": len(grids) == 1},
+    }
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):  # 1 MB at a time
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def command_output(*args: str) -> str:
+    return subprocess.run(args, capture_output=True, text=True, check=True).stdout.strip()
+
+
+def provenance() -> dict[str, Any]:
+    """When and with what this run was made, so a result can be traced and repeated."""
+    return {
+        "utc": datetime.now(UTC).isoformat(timespec="seconds"),
+        "git_commit": command_output("git", "rev-parse", "HEAD"),
+        # Uncommitted changes mean the commit alone can't reproduce this run.
+        "git_dirty": command_output("git", "status", "--porcelain") != "",
+        "python": platform.python_version(),
+        "packages": {name: version(name) for name in ("numpy", "rasterio", "pyyaml")},
+        # Two GDALs: the command-line one made the grids, rasterio's own read and wrote them.
+        "gdal_cli": command_output("gdalinfo", "--version"),
+        "gdal_rasterio": rasterio.__gdal_version__,
+    }
+
+
 def write(path: Path, array: np.ndarray, profile: dict[str, Any], nodata: float) -> None:
     """Write one band on the same grid as `profile`, with this array's dtype."""
     profile = {**profile, "dtype": array.dtype.name, "nodata": nodata, "count": 1}
@@ -139,7 +211,9 @@ def main() -> None:
     prepare(config, work)
 
     _, profile = read(work / "pre_nir.tif")  # the shared grid, for writing outputs
-    dnbr = masked_nbr(work, "pre", config) - masked_nbr(work, "post", config)
+    pre = masked_nbr(work, "pre", config)
+    post = masked_nbr(work, "post", config)
+    dnbr = pre - post
     write(out / "dnbr.tif", dnbr.astype("float32"), profile, nodata=np.nan)
 
     severity = config["severity"]
@@ -151,7 +225,41 @@ def main() -> None:
     write_confusion(out / "confusion.csv", matrix, severity["classes"])
     stats = agreement(matrix)
 
+    outline, _ = read(work / "outline.tif")
+    inside = outline == 1
+    checks = qa_checks(config, work, pre, post, fesm, inside)
+    passed = all(c["passed"] for c in checks.values())
+
     valid = dnbr[~np.isnan(dnbr)]
+    metadata = {
+        "fire": config["fire"]["id"],
+        # If any QA check failed, the agreement numbers are kept but flagged as unreliable.
+        "reliable": passed,
+        "qa": checks,
+        "results": {
+            "agreement": stats,
+            "dnbr_median": round(float(np.median(valid)), 3),
+            "dnbr_valid_pixels": int(valid.size),
+            "fesm_grassland_pixels_dropped": int(((fesm == 1) & inside).sum()),
+        },
+        "inputs": {
+            "config": {"path": str(args.config), "sha256": sha256(args.config)},
+            "fesm": {
+                "path": config["inputs"]["fesm"],
+                "sha256": sha256(Path(config["inputs"]["fesm"])),
+            },
+            "outline": {
+                "path": config["inputs"]["outline"],
+                "sha256": sha256(Path(config["inputs"]["outline"])),
+            },
+            "scenes": config["scenes"],
+        },
+        "settings": {key: config[key] for key in ("grid", "bands", "fesm", "severity", "qa")},
+        "run": provenance(),
+    }
+    # default=str writes dates as "2023-12-07".
+    (out / "metadata.json").write_text(json.dumps(metadata, indent=2, default=str) + "\n")
+
     print(f"dNBR: {valid.size} valid pixels, median {np.median(valid):.2f}")
     print(
         f"Agreement with FESM over {stats['pixels']} pixels: "
@@ -159,7 +267,13 @@ def main() -> None:
         f"lower than FESM {stats['lower_than_fesm_pct']:.1f}%, "
         f"higher {stats['higher_than_fesm_pct']:.1f}%"
     )
-    print(f"Wrote dnbr.tif, severity.tif and confusion.csv in {out}")
+    for name, c in checks.items():
+        print(
+            f"  QA {'PASS' if c['passed'] else 'FAIL'}  {name}: {c['value']} (limit {c['limit']})"
+        )
+    if not passed:
+        print("WARNING: a QA check failed; results are marked unreliable in metadata.json")
+    print(f"Wrote dnbr.tif, severity.tif, confusion.csv and metadata.json in {out}")
 
 
 if __name__ == "__main__":
