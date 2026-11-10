@@ -9,7 +9,7 @@ import yaml
 from shapely.geometry import box
 
 from fesmqa.config import Config, FireConfig
-from fesmqa.outlines import load_outline, outline_bbox
+from fesmqa.outlines import load_outline, outline_area, outline_bbox
 
 REPO_CONFIG = Path(__file__).parent.parent / "config.yaml"
 
@@ -61,6 +61,13 @@ def test_load_outline_missing_file_raises(config: Config, tmp_path: Path) -> Non
     )
     with pytest.raises(FileNotFoundError, match="outline file not found"):
         load_outline(moved, make_fire("111"))
+
+
+def test_outline_area_joins_all_parts_in_lon_lat(config: Config) -> None:
+    area = outline_area(load_outline(config, make_fire("111")))
+    # Two boxes, 0.5 x 0.5 and 0.4 x 0.4 degrees.
+    assert area.area == pytest.approx(0.25 + 0.16, abs=1e-4)
+    assert area.bounds == pytest.approx((150.0, -30.2, 151.0, -29.5), abs=1e-4)
 
 
 def test_outline_bbox_covers_all_parts_in_lon_lat(config: Config) -> None:

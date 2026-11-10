@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import geopandas as gpd
+from shapely.geometry.base import BaseGeometry
 
 from fesmqa.config import Config, FireConfig
 
@@ -21,6 +22,11 @@ def load_outline(config: Config, fire: FireConfig) -> gpd.GeoDataFrame:
             f"in {config.outlines.path}"
         )
     return outline
+
+
+def outline_area(outline: gpd.GeoDataFrame) -> BaseGeometry:
+    """All of the outline's polygons as one shape in lon/lat (EPSG:4326)."""
+    return outline.to_crs("EPSG:4326").union_all()
 
 
 def outline_bbox(outline: gpd.GeoDataFrame) -> tuple[float, float, float, float]:
